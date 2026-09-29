@@ -1,0 +1,960 @@
+{
+  "schema_version": "1.0",
+  "saal_rules_version": "1.1",
+  "saalco_version": "1.0.0",
+  "target_commit": "b76447da0ead504cce5ad7fca9cdff92f0afb76a",
+  "run_id": "20260929T193243",
+  "executed_at": "2026-09-29T19:34:22+09:00",
+  "environment": {
+    "os": "Darwin",
+    "python": "3.14.5",
+    "arch": "arm64"
+  },
+  "lockfile": {
+    "path": "uv.lock",
+    "sha256": "55979bedff2e1007de9f0ca02af4de502c8ba9f64be28ec18312f23948082e34"
+  },
+  "gates": [
+    {
+      "name": "format",
+      "command": "uv run --locked ruff format --check .",
+      "started_at": "2026-09-29T19:32:43+09:00",
+      "ended_at": "2026-09-29T19:32:43+09:00",
+      "exit_code": 0,
+      "result": "PASS",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    },
+    {
+      "name": "lint",
+      "command": "uv run --locked ruff check .",
+      "started_at": "2026-09-29T19:32:43+09:00",
+      "ended_at": "2026-09-29T19:32:43+09:00",
+      "exit_code": 0,
+      "result": "PASS",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    },
+    {
+      "name": "typecheck",
+      "command": "uv run --locked mypy src",
+      "started_at": "2026-09-29T19:32:43+09:00",
+      "ended_at": "2026-09-29T19:32:43+09:00",
+      "exit_code": 0,
+      "result": "PASS",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    },
+    {
+      "name": "secret_scan",
+      "command": "",
+      "started_at": null,
+      "ended_at": null,
+      "exit_code": null,
+      "result": "NOT_CONFIGURED",
+      "tool_version": null
+    },
+    {
+      "name": "dependency_audit",
+      "command": "",
+      "started_at": null,
+      "ended_at": null,
+      "exit_code": null,
+      "result": "NOT_CONFIGURED",
+      "tool_version": null
+    },
+    {
+      "name": "static_analysis",
+      "command": "",
+      "started_at": null,
+      "ended_at": null,
+      "exit_code": null,
+      "result": "NOT_CONFIGURED",
+      "tool_version": null
+    },
+    {
+      "name": "saalco-check",
+      "command": "saalco check",
+      "started_at": null,
+      "ended_at": null,
+      "exit_code": 1,
+      "result": "FAIL",
+      "tool_version": "1.0.0"
+    },
+    {
+      "name": "test.unit",
+      "command": "uv run --locked pytest tests/unit --cov=src --cov-context=test -p no:cacheprovider --junitxml=/Users/m-yukito/Developer/work/infomation_10_4/.saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-unit.xml",
+      "started_at": "2026-09-29T19:32:43+09:00",
+      "ended_at": "2026-09-29T19:32:44+09:00",
+      "exit_code": 0,
+      "result": "PASS",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    },
+    {
+      "name": "test.integration",
+      "command": "uv run --locked pytest tests/integration --cov=src --cov-context=test --cov-append -p no:cacheprovider --junitxml=/Users/m-yukito/Developer/work/infomation_10_4/.saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-integration.xml",
+      "started_at": "2026-09-29T19:32:44+09:00",
+      "ended_at": "2026-09-29T19:33:13+09:00",
+      "exit_code": 0,
+      "result": "PASS",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    },
+    {
+      "name": "test.e2e",
+      "command": "uv run --locked pytest tests/e2e --cov=src --cov-context=test --cov-append -p no:cacheprovider --junitxml=/Users/m-yukito/Developer/work/infomation_10_4/.saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-e2e.xml",
+      "started_at": "2026-09-29T19:33:13+09:00",
+      "ended_at": "2026-09-29T19:34:21+09:00",
+      "exit_code": 1,
+      "result": "FAIL",
+      "tool_version": "uv 0.11.8 (0e961dd9a 2026-04-27 aarch64-apple-darwin)"
+    }
+  ],
+  "tests": [
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_quest_input_becomes_high_level_commands_on_udp_out",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0006",
+      "spec": "ST-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_deadman_release_stops_drive",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0012",
+      "spec": "ST-0010",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_input_loss_stops_drive",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0012",
+      "spec": "ST-0010",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_estop_latches_until_booth_release",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0011",
+      "spec": "ST-0009",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_frozen_hub_stops_car_within_500ms",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0010",
+      "spec": "ST-0008",
+      "result": "FAIL"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_crashed_hub_stops_car_within_500ms",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0010",
+      "spec": "ST-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_hub_restart_recovers_without_touching_car",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0018",
+      "spec": "ST-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_car_ctrl_restart_recovers_without_touching_hub",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0018",
+      "spec": "ST-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_udp_out_is_periodic_safety_judged_output",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0016",
+      "spec": "ST-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_local_telemetry_reaches_operator_side",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0014",
+      "spec": "ST-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_registered_topic_passes_unregistered_is_ignored",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0013",
+      "spec": "ST-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_control.py::test_unregistered_topic_from_browser_is_ignored",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0013",
+      "spec": "ST-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_pilot_video_is_shown_full_screen_on_car_page",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0004",
+      "spec": "ST-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_pilot_video_is_sent_small_and_under_400kbps",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0009",
+      "spec": "ST-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_car_uplink_media_stays_within_3mbps",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0007",
+      "spec": "ST-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_booth_shows_rtt_rates_connections_and_car_state",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0019",
+      "spec": "ST-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_hub_restart_all_sessions_come_back",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0018",
+      "spec": "ST-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_car_ctrl_restart_leaves_media_and_recovers",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0018",
+      "spec": "ST-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_page_reloads_recover_sessions",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0018",
+      "spec": "ST-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/e2e/test_st_media.py::test_media_teardown_does_not_disturb_control",
+      "category": "e2e",
+      "marker": "verifies",
+      "referenced_id": "REQ-0015",
+      "spec": "ST-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0001_command_to_udp_out.py::test_quest_input_reaches_udp_out",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0005",
+      "spec": "IT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0001_command_to_udp_out.py::test_quest_input_reaches_udp_out",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0008",
+      "spec": "IT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0002_heartbeat_loss.py::test_hub_kill_stops_car_and_recovers",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0007",
+      "spec": "IT-0002",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0003_estop_latch.py::test_estop_latch_and_release",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0007",
+      "spec": "IT-0003",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0004_telemetry.py::test_telemetry_injection_and_discard",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0006",
+      "spec": "IT-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0004_telemetry.py::test_telemetry_injection_and_discard",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0008",
+      "spec": "IT-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0005_signaling.py::test_signaling_relay_and_reconnect",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0002",
+      "spec": "IT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0005_signaling.py::test_signaling_relay_and_reconnect",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0004",
+      "spec": "IT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0006_status_rtt.py::test_status_reports_rtt_and_state",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0009",
+      "spec": "IT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0007_input_loss.py::test_input_loss_stops_drive",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0005",
+      "spec": "IT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/integration/test_it_0007_input_loss.py::test_input_loss_stops_drive",
+      "category": "integration",
+      "marker": "verifies",
+      "referenced_id": "AD-0007",
+      "spec": "IT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_config.py::test_config_defaults",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0009",
+      "spec": "UT-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_config.py::test_config_cli_override",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0009",
+      "spec": "UT-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_config.py::test_status_shape_empty",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0009",
+      "spec": "UT-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_config.py::test_channel_options",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0010",
+      "spec": "UT-0013",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_no_input_gives_stop_and_heartbeat",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_input_timeout",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_periods",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_heartbeat_payload_and_seq",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_estop_latch",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_release_only_from_booth",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_control.py::test_rtt",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0005",
+      "spec": "UT-0007",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_roundtrip",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_encode_is_compact",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_invalid_json",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_missing_key",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_wrong_type",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_bad_topic",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_max_topic_length_accepted",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_oversize",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_envelope.py::test_bytes_input",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0001",
+      "spec": "UT-0001",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_filters.py::test_seq_basic",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0003",
+      "spec": "UT-0003",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_filters.py::test_seq_independent",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0003",
+      "spec": "UT-0003",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_filters.py::test_seq_reset",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0003",
+      "spec": "UT-0003",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_filters.py::test_rate_10hz",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0003",
+      "spec": "UT-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_filters.py::test_rate_unlimited",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0003",
+      "spec": "UT-0004",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_build_effective_shape",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0010",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_stop_values",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0010",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_invalid_json",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_unregistered",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_fixed_or_down",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_forward_registered",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_rate_limited",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0007",
+      "spec": "UT-0011",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_local_io.py::test_dgram_helper_is_json",
+      "category": "unit",
+      "marker": "impl_aware",
+      "referenced_id": null,
+      "spec": null,
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_deadman_released",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_deadman_held",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_deadzone_and_directions",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_rescale_monotonic",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_stage_buttons",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0005",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_clutch_rising_edge",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_clutch_relative_motion",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_clutch_release_and_regrip",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_no_pose_disables",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_mapping.py::test_grip_value",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0004",
+      "spec": "UT-0006",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_initial",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_run_and_command",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_heartbeat_timeout",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_recover_discards_old_command",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_link_down",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_command_timeout_keeps_run",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_deadman_false_zeroes_drive",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0008",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_estop_from_any",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0009",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_estop_ignores_everything",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0009",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_release_then_heartbeat",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0009",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_safety.py::test_state_change_flag",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0006",
+      "spec": "UT-0009",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_s1_restart_when_both_present",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_s2_and_s3",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_signal_forwarding",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_s3_signal_to_internal_peer",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_rehello_closes_old",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_close_old_ignored_current_notifies",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_restart_req",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_signaling.py::test_unknown_role_and_session",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0008",
+      "spec": "UT-0012",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_topics.py::test_fixed_topics",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0002",
+      "spec": "UT-0002",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_topics.py::test_unknown",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0002",
+      "spec": "UT-0002",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_topics.py::test_invalid_extension",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0002",
+      "spec": "UT-0002",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_topics.py::test_valid_extension",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0002",
+      "spec": "UT-0002",
+      "result": "PASS"
+    },
+    {
+      "nodeid": "tests/unit/test_topics.py::test_to_json_contains_all",
+      "category": "unit",
+      "marker": "verifies",
+      "referenced_id": "DD-0002",
+      "spec": "UT-0002",
+      "result": "PASS"
+    }
+  ],
+  "coverage": {
+    "total": 94.94,
+    "diff": 94.94,
+    "diff_base_commit": null,
+    "status": "PASS",
+    "json_path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/coverage.json"
+  },
+  "artifacts": [
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/coverage.data",
+      "sha256": "8152e40b732a1086b5b761a8eb35e16551664948f441479da02bdf8cfd65839e",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/coverage.json",
+      "sha256": "6c3cf5da3851f8bb9bf5f238cd65e812fc919aa4aec387af48dcb2651aff933b",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/gate-format.log",
+      "sha256": "f6eac9d01e0d1f0f32c0df41c9c6dacca939b84246d9d0e5d5993b33734f87ca",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/gate-lint.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/gate-typecheck.log",
+      "sha256": "df31673ff938e9a6a603c56cfd13949b42c1b8edcba9d2688c7f771f48c449d9",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-e2e.xml",
+      "sha256": "1212c7b46167553d3d4d78393ee75f819d2a758a9311708ac7ee770466fc1f1f",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-integration.xml",
+      "sha256": "b3f1d0f86c1dc5d464d4e7e9a5d3a62e77907b75a3c46f3b4494dc5a920ebdc5",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/junit-unit.xml",
+      "sha256": "02a34bed1aaaf695118514446cf6450259283b48c70ab8cd30dc7c91002f82fa",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/test-e2e.log",
+      "sha256": "a05ae1cba89a239b947cff17805950e1f53964f33484d152830fefceda7dc68d",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/test-integration.log",
+      "sha256": "93ed4c104be29c5a3680195dac3e97faf50f65ebdea07f628e374d45200e653a",
+      "retention_location": ".saal/artifacts"
+    },
+    {
+      "path": ".saal/artifacts/b76447da0ead504cce5ad7fca9cdff92f0afb76a/20260929T193243/test-unit.log",
+      "sha256": "d8fd42686106e4ee57fbfa77f20e441078ef4ee0aba74e198a61830a6b8e87e9",
+      "retention_location": ".saal/artifacts"
+    }
+  ],
+  "overall": "FAIL"
+}
