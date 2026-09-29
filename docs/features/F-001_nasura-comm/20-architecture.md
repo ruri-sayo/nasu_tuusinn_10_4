@@ -1,8 +1,7 @@
 ---
+kind: AD
 feature: F-001
-doc: architecture
 status: draft
-version: 0
 ---
 
 # F-001 基本設計

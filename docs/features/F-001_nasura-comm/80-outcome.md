@@ -1,8 +1,7 @@
 ---
+kind: OUTCOME
 feature: F-001
-doc: outcome
 status: draft
-version: 0
 ---
 
 # F-001 リリース記録（system）

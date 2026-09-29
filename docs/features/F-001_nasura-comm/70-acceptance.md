@@ -1,8 +1,7 @@
 ---
+kind: ACCEPTANCE
 feature: F-001
-doc: acceptance
 status: draft
-version: 0
 ---
 
 # F-001 受け入れ判断（H6・規則の担保範囲外）

@@ -1,9 +1,8 @@
 ---
+kind: FEATURE
 feature: F-001
-title: NASURA通信系 PoC
-tier: M
 status: draft
-version: 0
+tier: M
 ---
 
 # F-001 NASURA通信系 PoC

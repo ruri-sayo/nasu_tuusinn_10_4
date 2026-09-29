@@ -1,8 +1,7 @@
 ---
+kind: IT
 feature: F-001
-doc: integration-test-spec
 status: draft
-version: 0
 ---
 
 # F-001 結合試験仕様

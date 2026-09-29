@@ -1,8 +1,7 @@
 ---
+kind: DD
 feature: F-001
-doc: detailed-design
 status: draft
-version: 0
 ---
 
 # F-001 詳細設計

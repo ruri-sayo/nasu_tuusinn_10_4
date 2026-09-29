@@ -1,8 +1,7 @@
 ---
+kind: UT
 feature: F-001
-doc: unit-test-spec
 status: draft
-version: 0
 ---
 
 # F-001 単体試験仕様

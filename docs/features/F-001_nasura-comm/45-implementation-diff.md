@@ -1,8 +1,7 @@
 ---
+kind: IMPLEMENTATION_DIFF
 feature: F-001
-doc: implementation-diff
 status: draft
-version: 0
 ---
 
 # F-001 実装差分レポート

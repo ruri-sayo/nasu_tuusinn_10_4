@@ -1,8 +1,7 @@
 ---
+kind: ST
 feature: F-001
-doc: system-e2e-spec
 status: draft
-version: 0
 ---
 
 # F-001 システム／E2E 試験仕様

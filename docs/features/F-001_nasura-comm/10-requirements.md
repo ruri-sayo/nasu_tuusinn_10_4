@@ -1,8 +1,7 @@
 ---
+kind: REQ
 feature: F-001
-doc: requirements
 status: draft
-version: 0
 ---
 
 # F-001 要件定義
@@ -32,133 +31,133 @@ version: 0
 
 ### REQ-0001: 操縦側は Quest 3S のブラウザだけで成立する
 
-covers:
+covers: -
 verify: test
 
 Quest 3S には追加アプリを入れず、Quest Browser で URL を開いて Enter VR するだけで、映像視聴・音声受聴・操作ができること。
 
 ### REQ-0002: 360°映像を Quest で全天球表示できる
 
-covers:
+covers: -
 verify: test
 
 X4（Webカメラモード）の正距円筒映像を車載PCから送り、Quest 上で頭の向きに追従する全天球として表示できること。
 
 ### REQ-0003: 車載音声を操縦者が聞ける
 
-covers:
+covers: -
 verify: test
 
 車載マイクの音声を Quest で再生できること。会話が成立する遅延であること。
 
 ### REQ-0004: パイロット映像を車載モニタに表示できる
 
-covers:
+covers: -
 verify: test
 
 ブースのカメラで撮ったパイロット映像を、車載PCのモニタに全画面表示できること。
 
 ### REQ-0005: パイロット音声を車載側で再生できる
 
-covers:
+covers: -
 verify: test
 
 ブースのマイク音声を車載PCで再生できること。会話が成立する遅延であること。
 
 ### REQ-0006: 操作命令を車載へ届けられる
 
-covers:
+covers: -
 verify: test
 
 Quest のコントローラ入力から生成した走行・アーム・ステージの命令を車載PCへ届けられること。Quest の生入力を低位命令として WAN に流さず、中間サーバで High-level 命令に変換してから送ること。
 
 ### REQ-0007: 上り帯域の合計を 3.0 Mbps 以内に収める
 
-covers:
+covers: -
 verify: test
 
 NASURA の上り（360°映像＋車載音声＋テレメトリ＋制御応答）の合計が 3.0 Mbps を超えないこと。
 
 ### REQ-0008: 360°映像は低遅延を優先する
 
-covers:
+covers: -
 verify: test
 
 360°映像はバッファを溜めず、遅れたフレームは捨てること。回線が詰まった場合は画質を落としてフレームレートを保つこと。
 
 ### REQ-0009: パイロット映像は高圧縮を優先する
 
-covers:
+covers: -
 verify: test
 
 パイロット映像は遅延を許容し、低解像度・低フレームレート・低ビットレート（目安 400 kbps 以下）で送ること。
 
 ### REQ-0010: 通信途絶時は走行を停止する
 
-covers:
+covers: -
 verify: test
 
 中間サーバ→車載の制御リンクが途絶した場合、途絶から 500 ms 以内に車載の実効命令を停止にすること。
 
 ### REQ-0011: E-STOP はラッチし、明示解除でのみ復帰する
 
-covers:
+covers: -
 verify: test
 
 Quest またはブースから E-STOP を発行できること。E-STOP 受信後は、ブースからの明示的な解除操作があるまで一切の動作命令を無効にすること。
 
 ### REQ-0012: 操縦入力の途絶・デッドマン解放で停止命令を出す
 
-covers:
+covers: -
 verify: test
 
 Quest からの入力が途絶した場合、またはデッドマン操作が解放された場合、中間サーバは停止命令を送ること。
 
 ### REQ-0013: 登録済み topic はコア変更なしに追加送受信できる
 
-covers:
+covers: -
 verify: test
 
 所定形式（共通エンベロープ）に従い topic 登録表へ1項目を追加するだけで、新しいデータを送受信できること。未登録の topic は受信側で無視し、処理を止めないこと。
 
 ### REQ-0014: テレメトリの投入口を用意する
 
-covers:
+covers: -
 verify: test
 
 車載PC上の任意のローカルモジュール（将来の電圧・速度・距離センサ）が、所定形式のデータを投入すれば操縦側まで届く経路を用意すること。今回は中身となるセンサは無い。
 
 ### REQ-0015: 制御と映像を分離する
 
-covers:
+covers: -
 verify: test
 
 映像の輻輳・切断が制御命令と heartbeat の配送を妨げないこと。
 
 ### REQ-0016: 車載のローカル出力 I/F を定める
 
-covers:
+covers: -
 verify: test
 
 車載PCは、安全判定を通した実効命令を localhost の UDP へ定周期で出力すること。Drive・アームとの接続はこの I/F の先で別途行う。
 
 ### REQ-0017: tailnet 内で完結し、ページは HTTPS で配信する
 
-covers:
+covers: -
 verify: test
 
 主催者回線側でのポート開放を必要としないこと。カメラ取得と WebXR のため、ページは HTTPS（Tailscale Serve）で配信すること。
 
 ### REQ-0018: 切断から自動復帰する
 
-covers:
+covers: -
 verify: test
 
 いずれかのノードが切断・再起動しても、人手で他ノードを再起動せずにセッションが再確立されること。
 
 ### REQ-0019: 通信状態を監視できる
 
-covers:
+covers: -
 verify: test
 
 制御リンクの RTT、各映像のビットレート・フレームレート、接続状態、車載の安全状態を、ブースで確認できること。
