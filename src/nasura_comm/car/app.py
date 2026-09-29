@@ -24,6 +24,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import signal
 import ssl
 from pathlib import Path
 from typing import Any
@@ -321,5 +322,11 @@ class CarCtrl:
 async def amain(args: argparse.Namespace, events: EventLog | None = None) -> None:
     """Run car_ctrl."""
     car = CarCtrl(args, events)
+    task = asyncio.current_task()
+    if task is not None:
+        # Exit cleanly on SIGTERM (systemd stop, test teardown) so logs and
+        # coverage data are flushed.
+        with contextlib.suppress(NotImplementedError):
+            asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, task.cancel)
     with contextlib.suppress(asyncio.CancelledError):
         await car.run()
