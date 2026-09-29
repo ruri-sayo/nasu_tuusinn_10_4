@@ -35,3 +35,13 @@ reason: 10/4 の実機確認で時間が足りない場合、ST-0011（自動復
 resolution: 省略した ST を後日実施し、結果欄に記録した時点で解消。省略しなかった場合はその時点で解消。
 decided_by:
 decided_at:
+
+### DEV-0004: 実機でしか確認できない REQ に自動の verifies 試験が無い
+
+rule: 6.6
+scope: F-001, REQ-0001, REQ-0002, REQ-0003, REQ-0005, REQ-0008, REQ-0017
+status: open
+reason: REQ-0001（Quest ブラウザだけで成立）、REQ-0002（全天球表示・頭部追従）、REQ-0003・REQ-0005（会話が成立する音声遅延）、REQ-0008（低遅延優先・遅れフレームの破棄）、REQ-0017（tailnet・HTTPS 配信）は、Quest 実機・tailnet・実回線・人の知覚が必要で、開発機の自動 E2E 試験では要件の基準を判定できない。これらは ST（method: manual、H5）で確認する。ただし SAALCO 1.0.0 の `saalco check` は、REQ の検証充足を pytest の `verifies` マーカーだけで判定し、手動 ST の PASS を数えない（`saalco trace` は数える）。また、この ERROR は DEV で WARNING に格下げできない。そのため、手動 ST を実施して PASS を記録した後も、この6件は `saalco check` の ERROR として残る。判定できない試験に `verifies` を付けたり、`verify:` を事実と異なる値に変えたりはしない。
+resolution: 10/4 以降の実機試験で ST-0001〜0005・ST-0011 等を実施し、60-system-e2e-spec.md に method: manual の結果を記録する。SAALCO 側で「手動 ST の PASS を check の充足に数える」か「この ERROR を DEV で格下げ可能にする」かを決め、対応されたら本 DEV を閉じる。
+decided_by:
+decided_at:

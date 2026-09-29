@@ -55,6 +55,12 @@ from nasura_comm.signaling import Close, Internal, Send, SignalRouter
 log = logging.getLogger(__name__)
 
 TICK_S = 0.005
+WS_HEARTBEAT_S = 10.0
+"""WebSocket ping period; a peer is dropped if no pong within half of it.
+
+Not a safety timer (S3 heartbeats are); it only detects vanished pages. 5 s
+dropped loaded browsers that answered pongs late.
+"""
 REPLACED_CLOSE_CODE = 4001
 """WebSocket close code for a connection replaced by a newer one of the same role."""
 STATS_STALE_MS = 5000
@@ -248,7 +254,7 @@ class Hub:
 
     async def ws_handler(self, request: web.Request) -> web.WebSocketResponse:
         """Handle one WebSocket connection for its whole life."""
-        ws = web.WebSocketResponse(heartbeat=5.0)
+        ws = web.WebSocketResponse(heartbeat=WS_HEARTBEAT_S)
         await ws.prepare(request)
         role: str | None = None
         try:
@@ -335,7 +341,7 @@ class Hub:
             latched=self.core.latched,
             last_input_age_ms=self.core.last_input_age_ms(now),
             stats=stats,
-            dropped={**self.car_dropped, **{k: v for k, v in self.dropped.items()}},
+            dropped=dict(Counter(self.car_dropped) + self.dropped),
             telemetry=dict(self.telemetry),
             up_budget_bps=self.cfg.up_budget_bps,
         )
