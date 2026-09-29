@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+markers = [
+  "verifies(id, spec=None): specification-derived test",
+  "impl_aware(id=None): implementation-aware test",
+]
