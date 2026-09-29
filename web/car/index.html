@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NASURA car</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #pilot { width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+  #hud { position: fixed; top: 8px; right: 8px; font: 13px/1.4 system-ui, sans-serif;
+         color: #aaa; background: rgba(0, 0, 0, .6); padding: 6px 10px; border-radius: 6px; }
+  #hud.hidden { display: none; }
+  #error { position: fixed; left: 8px; bottom: 8px; font: 16px system-ui, sans-serif; color: #f44; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+</style>
+</head>
+<body>
+<video id="pilot" autoplay playsinline></video>
+<div id="hud">
+  <div>WS <span class="dot" id="wsDot"></span></div>
+  <div>S1 → quest <span class="dot" id="s1Dot"></span><span id="s1Text">-</span></div>
+  <div>S2 ← booth <span class="dot" id="s2Dot"></span><span id="s2Text">-</span></div>
+  <div id="camInfo">camera: -</div>
+</div>
+<div id="error"></div>
+<script type="module" src="car.js"></script>
+</body>
+</html>

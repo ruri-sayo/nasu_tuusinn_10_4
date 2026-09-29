@@ -1,10 +1,10 @@
 import json
 
 import pytest
-from nasura_comm.local_io import TelemetryGate, build_effective, stop_effective
-from nasura_comm.topics import Registry, TopicSpec
 
 from nasura_comm import envelope
+from nasura_comm.local_io import TelemetryGate, build_effective, stop_effective
+from nasura_comm.topics import Registry, TopicSpec
 
 
 def _eff(v=0.25):

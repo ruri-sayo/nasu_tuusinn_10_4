@@ -22,16 +22,19 @@ src/nasura_comm/
   config.py          # DD-0009  defaults + CLI overrides
   datachannel.py     # DD-0010  channel option builder + aiortc glue
   log.py             # DD-0016
-  hub/__main__.py    # aiohttp app wiring (DD-0009)
-  car/__main__.py    # car_ctrl wiring
+  clock.py           # monotonic / epoch ms (I/O layer only)
+  hub/app.py         # aiohttp app wiring (DD-0009)
+  hub/__main__.py    # entry point
+  car/app.py         # car_ctrl wiring (DD-0010)
+  car/__main__.py    # entry point
 web/
   common/signaling.js, rtc.js, stats.js   # DD-0011
   car/index.html, car.js                  # DD-0012
   booth/index.html, booth.js              # DD-0013
   quest/index.html, quest.js, input.js, xr-view.js   # DD-0014
-  vendor/three.module.js                  # vendored, no CDN
+  vendor/                                 # vendored libraries if needed (no CDN)
 scripts/
-  run_hub.sh, run_car.sh, fake_telemetry.py          # DD-0015
+  run_hub.sh, run_car.sh, fake_telemetry.py, dump_effective.py   # DD-0015
 tests/unit, tests/integration, tests/e2e
 ```
 
@@ -90,7 +93,7 @@ class TopicSpec:
 | sys/heartbeat_ack | up | ctrl | 10 | `{hb:int, t_hub:int, state:str}` |
 | sys/estop | down | rel | — | `{source:"quest"\|"booth"\|"hub", reason:str}` |
 | sys/estop_release | down | rel | — | `{source:"booth"}` |
-| sys/state | up | rel | 5 | `{state:"INIT"\|"RUN"\|"STOP"\|"ESTOP", since:int, reason:str}` |
+| sys/state | up | rel | 5 | `{state:"INIT"\|"RUN"\|"STOP"\|"ESTOP", since:int, reason:str, dropped:{key:int}}` |
 | cmd/drive | down | ctrl | 30 | `{v:float, w:float, deadman:bool}` |
 | cmd/arm | down | ctrl | 30 | `{enable:bool, clutch_id:int, p:[x,y,z], q:[x,y,z,w], grip:float}` |
 | cmd/stage | down | ctrl | 30 | `{x:float, z:float}` |
@@ -103,9 +106,12 @@ class TopicSpec:
 # TopicSpec("tlm/battery_voltage", "up", "ctrl", 2.0, fixed=False)
 ```
 
+- `sys/state` の `dropped` は car_ctrl の UDP in で破棄した件数（DD-0007 の分類キーごとの累計）。hub はこれを `/status` の `dropped` に合算する。
 - `lookup(name) -> TopicSpec | None`
 - `EXTENSIONS` に固定 topic と同名、または `sys/`・`cmd/`・`in/`・`out/` で始まる名前があれば、import 時に `ValueError`。
 - `to_json() -> dict`：ブラウザ配布用。
+- 登録表の実体は `Registry(extensions)`（固定 topic＋検証済みの拡張）。モジュール関数 `lookup` / `to_json` は既定の登録表（`EXTENSIONS`）に委譲する。
+- 試験用に、hub と car_ctrl は CLI `--extra-topic NAME:DIR:CHANNEL:HZ` で拡張 topic を起動時に追加できる（IT-0004・ST-0013 用。人が設定ファイルを書かない方針は変えない）。
 
 意味：
 - `v`・`w`・`x`・`z` は正規化値 [-1, 1]。物理単位への換算は下流で行う。`w` は正で反時計回り（左旋回）、ROS REP-103 に合わせる。
@@ -161,6 +167,7 @@ verify: test
   - `cmd_period_ms` ごとに `cmd/drive`・`cmd/arm`・`cmd/stage` を出す。入力が `input_timeout_ms` より古い、入力が一度も無い、または `latched` のときは停止値（drive 0/0/false、arm enable=false、stage 0/0）。
   - `hb_period_ms` ごとに `sys/heartbeat`（hb は連番、t_hub = now）。
 - seq は topic ごとに ControlCore が採番する。
+- `on_link_up(now)`：S3 が（再）確立したとき、`latched` なら `sys/estop` を再送する（ラッチ中に S3 が張り直された場合も車載を ESTOP に揃えるため）。
 
 ※ tick の now は monotonic ms を使い、heartbeat の t_hub も同じ monotonic ms にする（RTT は hub 内で閉じるため）。エンベロープの `ts` は epoch ms を別に入れる。
 
@@ -239,6 +246,7 @@ WebSocket 上の JSON メッセージ（エンベロープとは別の層）：
 - `on_hello(role, handle) -> actions`：同じ role の旧ハンドルがあれば `close(old)`。その role を含む各セッションで両端が揃えば offerer に `restart`。
 - `on_signal(from_role, session, data) -> actions`：from_role がそのセッションの端でなければ破棄。相手へ転送（S3 の相手が hub なら内部ピアへ渡す）。
 - `on_restart_req(from_role, session)`：両端が揃っていれば offerer に `restart`。
+- 旧ハンドルの `close` は WebSocket の close code 4001（replaced）で行う。ブラウザはこのコードで閉じられたら再接続しない（同じ role の画面が2つあるときに互いを追い出し続けるのを防ぐ）。
 - `on_close(role, handle)`：ハンドルが現行のものでなければ無視（置き換え済みの旧接続）。現行なら削除し、その role を含むセッションの相手に `peer down`。
 - 不明な role・session・type は破棄してログ。
 - 認証は行わない（R-4）。
@@ -271,7 +279,7 @@ verify: test
 | audio_max_bitrate | 32,000 | 32,000 |
 | device_label | `Insta360` | （既定カメラ） |
 
-その他：`up_budget_bps = 3,000,000`。CLI：`--port --bind --s1-width --s1-height --s1-fps --s1-max-bitrate --s1-codec --s2-max-bitrate --tls-self-signed`。人が設定ファイルを手書きしない。
+その他：`up_budget_bps = 3,000,000`。CLI：`--port --bind --s1-width --s1-height --s1-fps --s1-max-bitrate --s1-codec --s1-device-label --s2-max-bitrate --tls-self-signed --web-dir --log-dir --extra-topic`。人が設定ファイルを手書きしない。`--tls-self-signed` は `openssl` で `.certs/` に自己署名証明書を1回だけ作る。
 
 `build_config_json(cfg) -> dict` と `build_status(state) -> dict` は純粋関数にする。`/status` の形：
 
@@ -282,10 +290,11 @@ verify: test
              "last_input_age_ms": 20},
  "stats": {"S1": {...}, "S2": {...}},
  "dropped": {"tlm/unknown": 3},
+ "telemetry": {"tlm/battery_voltage": {...}},
  "up_budget_bps": 3000000}
 ```
 
-セッション状態は、S1・S2 は各ページの stats 報告から、S3 は hub 側 aiortc の状態から得る。
+セッション状態は、S1・S2 は各ページの stats 報告（`data.state` に `connectionState`）から、S3 は hub 側 aiortc の状態から得る。`telemetry` は拡張 topic ごとの最新 payload。hub はブラウザから来た `env` の `src` を接続の role で上書きする（申告された src を信用しない）。
 
 ### DD-0010: S3 DataChannel（datachannel.py）
 
@@ -296,7 +305,8 @@ verify: test
 - car_ctrl（offerer）が `RTCPeerConnection(RTCConfiguration(iceServers=[]))` を作り、2本のチャネルを作成して offer する。hub は answer し、`ondatachannel` でラベルから振り分ける。
 - 受信処理：`decode` → `ctrl` なら SeqFilter → ControlCore / SafetyCore へ。
 - car_ctrl は hub の WebSocket が切れた、または PC が `failed`/`closed` になったら `SafetyCore.on_link_down()` を呼び、2秒後に再接続する。
-- car_ctrl の周期処理：20 Hz で UDP out、1 Hz と状態変化時に `sys/state`、heartbeat 受信時に即 `sys/heartbeat_ack`。
+- car_ctrl の周期処理：20 Hz で UDP out、1 Hz と状態変化時に `sys/state`、heartbeat 受信時に即 `sys/heartbeat_ack`。状態が変わったときは周期を待たずに UDP out を1回送る。
+- car_ctrl の CLI：`--hub URL --insecure --udp-out HOST:PORT --udp-in HOST:PORT --log-dir --extra-topic`、試験用の `--ack-delay-ms`（IT-0006 の人工遅延）。
 
 ### DD-0011: ブラウザ共通部（web/common）
 
@@ -309,6 +319,8 @@ verify: review
   - 送信側：トラックに `contentHint` を設定して addTrack。codec が auto 以外なら `transceiver.setCodecPreferences` で先頭に並べる。接続後に `sender.setParameters` で `maxBitrate`・`maxFramerate` を適用（映像・音声それぞれ）。
   - `restart` 受信で古い PC を閉じて作り直し、offer。
   - `iceConnectionState` が `failed`、または `disconnected` が 3 秒続いたら `restart_req`。
+  - offerer は、セッションを作った時点で WebSocket が接続済みなら `restart_req` を送る（メディア取得を待つ間に hub の `restart` を取りこぼした場合の補償）。
+- `signaling.js` は close code 4001（replaced）で閉じられたら再接続せず、画面に「置き換えられた」と表示する。
 - `stats.js`：2 秒ごとに `getStats()` を要約して `stats` 送信：送受信 kbps、fps、framesDropped、jitter、選択候補ペアの `currentRoundTripTime`・local/remote の candidateType。
 
 ### DD-0012: car_media ページ（web/car）
@@ -339,7 +351,7 @@ verify: review
 
 - 起動時に `getUserMedia({audio:true})` を1回取り、すぐ全トラックを stop する（AD-0010 の mDNS 回避。Quest の音声は送らない）。
 - S1 answerer（←car_media）。
-- 描画：Mac→Quest テストで動いた既存の XR ビューアを `xr-view.js` として流用する。既存コードが無ければ、vendored three.js で内側向き球体＋`VideoTexture`（正距円筒）を WebXR で描く。
+- 描画：Mac→Quest テストで動いた既存の XR ビューア（mac-camera-vr の `createWebXR360Renderer`、生 WebGL）を `xr-view.js` として流用する。three.js は使わない。参照空間は `local-floor`（取れなければ `local`）とし、コントローラ姿勢も同じ空間で読む。
 - 車載音声は `<audio autoplay>` で再生。Enter VR のクリックでユーザー操作要件を満たす。
 - `input.js`：XR フレームループで `inputSources` の gamepad と grip 姿勢（`local-floor`）を読み、30 Hz に間引いて `env`（`in/quest`）を送る。XR セッション外では送らない（hub 側で入力途絶→停止になる）。
 - 両スティック押し込みで `in/estop`（source=quest）。押しっぱなしでも 1 秒に1回まで。
@@ -358,6 +370,8 @@ verify: review
   ```
   （`--use-fake-ui-for-media-stream` は権限ダイアログを自動許可するだけで、実デバイスを使う）
 - `fake_telemetry.py`：UDP in に任意 topic を任意レートで投げる検証用ツール。
+- `dump_effective.py`：UDP out を受けて1行ずつ表示する検証用ツール（ST-0006・ST-0008。200 ms を超える間隔を GAP と表示）。
+- `run_car.sh` は `FAKE_MEDIA=1` で Chromium の fake device を使う（開発機での確認用）。
 - README に Tailscale 設定を記載：中間サーバ `tailscale up --advertise-routes=<ブースLAN CIDR>` と管理画面での承認、車載 `tailscale up --accept-routes`。
 - 開発機での確認用に、Chromium の `--use-fake-device-for-media-stream` でカメラ無しでも S1/S2 を張れることを README に記載。
 

@@ -1,6 +1,7 @@
 import math
 
 import pytest
+
 from nasura_comm.mapping import Mapper
 
 
@@ -78,7 +79,7 @@ def test_rescale_monotonic():
     assert values[0] == pytest.approx(0.0, abs=1e-3)
     assert values[1] < 0.05
     assert values[-1] == pytest.approx(1.0)
-    assert all(b >= a for a, b in zip(values, values[1:]))
+    assert all(b >= a for a, b in zip(values, values[1:], strict=False))
 
 
 @pytest.mark.verifies("DD-0004", spec="UT-0005")

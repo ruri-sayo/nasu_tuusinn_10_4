@@ -44,6 +44,9 @@ extend-exclude = ["docs"]
 # D: docstring presence/format (SAAL rule 11.4)
 select = ["E", "F", "W", "I", "B", "UP", "D"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["nasura_comm"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

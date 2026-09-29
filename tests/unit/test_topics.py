@@ -1,7 +1,7 @@
 import pytest
-from nasura_comm.topics import TopicSpec
 
 from nasura_comm import topics
+from nasura_comm.topics import TopicSpec
 
 pytestmark = pytest.mark.verifies("DD-0002", spec="UT-0002")
 
