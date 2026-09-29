@@ -36,13 +36,23 @@ class SeqFilter:
         return False
 
 
+JITTER_TOLERANCE = 0.2
+"""Fraction of the interval a message may arrive early (sender clock jitter)."""
+
+
 class RateLimiter:
-    """Enforce ``max_rate_hz`` per topic as a minimum interval between allows."""
+    """Enforce ``max_rate_hz`` per topic.
+
+    Uses a virtual schedule (GCRA): each allowed message advances the next
+    due time by ``1000 / hz`` ms, and a message may arrive up to 20 % of the
+    interval early. A sender at exactly the declared rate is not thinned by
+    jitter, while the long-run rate stays at ``max_rate_hz``.
+    """
 
     def __init__(self, registry: topics.Registry | None = None) -> None:
         """Use ``registry`` (default: the default registry) for rates."""
         self._registry = registry or topics.DEFAULT
-        self._last: dict[str, int] = {}
+        self._due: dict[str, float] = {}
 
     def allow(self, topic: str, now_ms: int) -> bool:
         """Return True if ``topic`` may pass at ``now_ms`` (monotonic ms).
@@ -53,8 +63,8 @@ class RateLimiter:
         if spec is None or spec.max_rate_hz is None:
             return True
         interval = 1000.0 / spec.max_rate_hz
-        last = self._last.get(topic)
-        if last is not None and now_ms - last < interval:
+        due = self._due.get(topic)
+        if due is not None and now_ms < due - interval * JITTER_TOLERANCE:
             return False
-        self._last[topic] = now_ms
+        self._due[topic] = max(due if due is not None else now_ms, now_ms) + interval
         return True

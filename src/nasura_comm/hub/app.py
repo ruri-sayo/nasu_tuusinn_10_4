@@ -223,6 +223,7 @@ class Hub:
     def _on_channel_open(self, channels: ChannelPair) -> None:
         if channels is self.channels and channels.is_open():
             self._event("s3_open")
+            self.core.rtt_ms = self.core.rtt_ewma_ms = None  # do not show the old link's RTT
             for env in self.core.on_link_up(mono_ms(), wall_ms()):
                 channels.send(env)
 

@@ -123,7 +123,7 @@ covers: AD-0006
 verify: test
 
 - `SeqFilter.accept(src, topic, seq) -> bool`：`ctrl` チャネルは順序保証が無いので、同じ (src, topic) で過去に受けた最大 seq 以下のものを捨てる。送信元の再起動で seq が戻ることに備え、`seq < last - 1000` のときはリセットとみなして受け入れる。
-- `RateLimiter.allow(topic, now_ms) -> bool`：`max_rate_hz` から最小間隔 `1000 / hz` ms を求め、前回許可からそれ未満なら拒否。`None` は常に許可。
+- `RateLimiter.allow(topic, now_ms) -> bool`：`max_rate_hz` から間隔 `1000 / hz` ms を求め、仮想的な予定時刻（許可するたびに間隔ぶん進める）より間隔の 20 % 以上早く来たものを拒否する（GCRA）。宣言どおりのレートで送る送信元が時刻の揺らぎで間引かれないようにし、長期のレートは `max_rate_hz` に保つ。`None` は常に許可。
 
 ### DD-0004: Quest 入力 → 命令変換（mapping.py）
 
@@ -164,7 +164,7 @@ verify: test
 - `on_input(env, now)`：`in/quest` を保存し受信時刻を記録。`in/estop` → 直ちに `sys/estop`（rel）を返し、`latched = True`。`in/estop_release` は `src == "booth"` のときだけ `sys/estop_release` を返し `latched = False`。それ以外の src からの release は無視してログ。
 - `on_car(env, now)`：`sys/heartbeat_ack` → `rtt_ms = now - t_hub` を更新（最新値と EWMA α=0.2）。`sys/state` → 車載状態を保存。
 - `tick(now) -> list[env]`：
-  - `cmd_period_ms` ごとに `cmd/drive`・`cmd/arm`・`cmd/stage` を出す。入力が `input_timeout_ms` より古い、入力が一度も無い、または `latched` のときは停止値（drive 0/0/false、arm enable=false、stage 0/0）。
+  - `cmd_period_ms` ごとに `cmd/drive`・`cmd/arm`・`cmd/stage` を出す。入力が `input_timeout_ms` より古い、入力が一度も無い、または `latched` のときは停止値（drive 0/0/false、arm enable=false、stage 0/0）。入力途絶で停止値に切り替わった時点では、周期を待たずにすぐ出す。
   - `hb_period_ms` ごとに `sys/heartbeat`（hb は連番、t_hub = now）。
 - seq は topic ごとに ControlCore が採番する。
 - `on_link_up(now)`：S3 が（再）確立したとき、`latched` なら `sys/estop` を再送する（ラッチ中に S3 が張り直された場合も車載を ESTOP に揃えるため）。
@@ -294,7 +294,7 @@ verify: test
  "up_budget_bps": 3000000}
 ```
 
-セッション状態は、S1・S2 は各ページの stats 報告（`data.state` に `connectionState`）から、S3 は hub 側 aiortc の状態から得る。`telemetry` は拡張 topic ごとの最新 payload。hub はブラウザから来た `env` の `src` を接続の role で上書きする（申告された src を信用しない）。
+セッション状態は、S1・S2 は各ページの stats 報告（`data.state` に `connectionState`）から、S3 は hub 側 aiortc の状態から得る。`telemetry` は拡張 topic ごとの最新 payload。S3 が確立し直したら RTT を null に戻す（前の接続の値を表示しない）。hub はブラウザから来た `env` の `src` を接続の role で上書きする（申告された src を信用しない）。
 
 ### DD-0010: S3 DataChannel（datachannel.py）
 
@@ -305,7 +305,7 @@ verify: test
 - car_ctrl（offerer）が `RTCPeerConnection(RTCConfiguration(iceServers=[]))` を作り、2本のチャネルを作成して offer する。hub は answer し、`ondatachannel` でラベルから振り分ける。
 - 受信処理：`decode` → `ctrl` なら SeqFilter → ControlCore / SafetyCore へ。
 - car_ctrl は hub の WebSocket が切れた、または PC が `failed`/`closed` になったら `SafetyCore.on_link_down()` を呼び、2秒後に再接続する。
-- car_ctrl の周期処理：20 Hz で UDP out、1 Hz と状態変化時に `sys/state`、heartbeat 受信時に即 `sys/heartbeat_ack`。状態が変わったときは周期を待たずに UDP out を1回送る。
+- car_ctrl の周期処理：20 Hz で UDP out、1 Hz と状態変化時に `sys/state`、heartbeat 受信時に即 `sys/heartbeat_ack`。状態が変わったとき、および実効命令の drive が動作中から 0/0 に変わったときは、周期を待たずに UDP out を1回送る（IT-0007 の 350 ms を満たすため）。
 - car_ctrl の CLI：`--hub URL --insecure --udp-out HOST:PORT --udp-in HOST:PORT --log-dir --extra-topic`、試験用の `--ack-delay-ms`（IT-0006 の人工遅延）。
 
 ### DD-0011: ブラウザ共通部（web/common）

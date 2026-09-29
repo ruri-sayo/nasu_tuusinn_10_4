@@ -107,6 +107,7 @@ class CarCtrl:
         self.events = events
         self._seq: dict[str, int] = {}
         self._udp_out: UdpOut | None = None
+        self._moving = False
 
     def _event(self, kind: str, **fields: Any) -> None:
         if self.events:
@@ -249,6 +250,11 @@ class CarCtrl:
                 self.channels.send(ack)
         if topic in ("sys/estop", "sys/estop_release"):
             self._event(topic, **env["payload"])
+        if topic == "cmd/drive":
+            moving = self.safety.effective(now)["drive"] != {"v": 0.0, "w": 0.0}
+            if self._moving and not moving:
+                self._send_effective(now)  # propagate a stop without waiting for the period
+            self._moving = moving
         self._after_update(now)
 
     # ---- periodic / local I/O -------------------------------------------

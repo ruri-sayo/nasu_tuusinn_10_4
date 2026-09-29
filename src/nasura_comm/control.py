@@ -69,6 +69,7 @@ class ControlCore:
         self._next_hb: int | None = None
         self._next_cmd: int | None = None
         self._seq: dict[str, int] = {}
+        self._stopped: bool | None = None
 
     def _env(self, topic: str, payload: dict[str, Any], wall_ms: int) -> Envelope:
         seq = self._seq.get(topic, -1) + 1
@@ -130,11 +131,15 @@ class ControlCore:
             if isinstance(state, str):
                 self.car_state = state
 
-    def _commands(self, now: int) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    def _should_stop(self, now: int) -> bool:
         age = self.last_input_age_ms(now)
-        if self.latched or self._input is None or age is None or age > self.input_timeout_ms:
+        return self.latched or self._input is None or age is None or age > self.input_timeout_ms
+
+    def _commands(self, now: int) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        if self._should_stop(now):
             self.mapper.map({})  # releases the arm clutch
             return stop_commands(self.mapper.clutch_id)
+        assert self._input is not None
         return self.mapper.map(self._input)
 
     def tick(self, now: int, wall_ms: int | None = None) -> list[Envelope]:
@@ -145,7 +150,10 @@ class ControlCore:
             self._hb += 1
             out.append(self._env("sys/heartbeat", {"hb": self._hb, "t_hub": now}, wall))
             self._next_hb = now + self.hb_period_ms
-        if self._next_cmd is None or now >= self._next_cmd:
+        # A change to stop values (input timeout) is sent at once, not on the next period.
+        stop_now = self._should_stop(now) and self._stopped is False
+        if self._next_cmd is None or now >= self._next_cmd or stop_now:
+            self._stopped = self._should_stop(now)
             drive, arm, stage = self._commands(now)
             for topic, payload in zip(CMD_TOPICS, (drive, arm, stage), strict=True):
                 out.append(self._env(topic, payload, wall))
