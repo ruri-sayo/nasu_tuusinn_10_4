@@ -24,7 +24,7 @@ covers: AD-0007
 
 1. IT-0001 の状態から、hub プロセスを強制終了（SIGKILL）する。
 
-合格：強制終了から 550 ms 以内に `state=STOP` かつ drive 0/0 の `out/effective` を受信し、以後も 20 Hz で停止値が出続ける。hub 再起動後、S3 が自動で再接続し（上限 15 秒）、入力再開で RUN に戻る。
+合格：強制終了から 1,250 ms 以内（heartbeat timeout 1,200 ms＋許容誤差 50 ms）に `state=STOP` かつ drive 0/0 の `out/effective` を受信し、以後も 20 Hz で停止値が出続ける。hub 再起動後、S3 が自動で再接続し（上限 15 秒）、入力再開で RUN に戻る。
 
 ### IT-0003: E-STOP のラッチと解除
 

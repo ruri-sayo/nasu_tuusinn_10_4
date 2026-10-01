@@ -118,7 +118,7 @@ executed_by:
 executed_at:
 
 手順：ST-0006 の状態で、(a) 中間サーバの LAN ケーブルを抜く／Wi-Fi を切る、(b) S1 だけを切る（car_media のタブをリロード）。
-合格：(a) UDP out が 0.5 秒以内に state=STOP・停止値になる（ダンプのタイムスタンプで確認）。(b) の間、UDP out は RUN のまま命令が継続する。
+合格：(a) UDP out が 1.5 秒以内に state=STOP・停止値になる（ダンプのタイムスタンプで確認）。(b) の間、UDP out は RUN のまま命令が継続する。
 
 結果：
 

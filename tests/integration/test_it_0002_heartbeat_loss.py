@@ -24,11 +24,11 @@ async def test_hub_kill_stops_car_and_recovers(system: System) -> None:
     system.kill_hub()
     await sender.stop()
 
-    # Pass: STOP with drive 0/0 within 550 ms of the kill.
+    # Pass: STOP with drive 0/0 within 1,250 ms of the kill.
     rec = await system.udp.wait_for(_is_stop, timeout=1.5, since=t_kill)
     assert rec is not None, "no out/effective with state=STOP, drive 0/0 within 1.5 s"
     latency_ms = (rec.t - t_kill) * 1000.0
-    assert latency_ms <= 550.0, f"STOP observed {latency_ms:.0f} ms after hub kill"
+    assert latency_ms <= 1250.0, f"STOP observed {latency_ms:.0f} ms after hub kill"
 
     # Pass: stop values keep coming at 20 Hz.
     t_obs = rec.t

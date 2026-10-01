@@ -58,9 +58,9 @@ def test_run_and_command():
 @pytest.mark.verifies("DD-0006", spec="UT-0008")
 def test_heartbeat_timeout():
     core = running(SafetyCore(), 0)
-    core.effective(499)
+    core.effective(1199)
     assert core.state == "RUN"
-    eff = core.effective(501)
+    eff = core.effective(1201)
     assert core.state == "STOP"
     assert stopped(eff)
 
@@ -69,13 +69,13 @@ def test_heartbeat_timeout():
 def test_recover_discards_old_command():
     core = running(SafetyCore(), 0)
     core.on_envelope(drive(0.5), 10)
-    core.effective(600)
+    core.effective(1300)
     assert core.state == "STOP"
-    core.on_envelope(hb(610), 610)
+    core.on_envelope(hb(1310), 1310)
     assert core.state == "RUN"
-    assert stopped(core.effective(620))
-    core.on_envelope(drive(0.3), 630)
-    assert core.effective(640)["drive"]["v"] == pytest.approx(0.3)
+    assert stopped(core.effective(1320))
+    core.on_envelope(drive(0.3), 1330)
+    assert core.effective(1340)["drive"]["v"] == pytest.approx(0.3)
 
 
 @pytest.mark.verifies("DD-0006", spec="UT-0008")

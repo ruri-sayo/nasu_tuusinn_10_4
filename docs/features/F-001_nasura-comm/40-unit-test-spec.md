@@ -76,7 +76,7 @@ covers: DD-0006
 
 - 初期は INIT、effective は停止値。
 - heartbeat → RUN。新しい cmd/drive（deadman=true, v=0.5）→ effective の v=0.5。
-- heartbeat 最終受信から 499 ms で RUN、501 ms で STOP、effective は停止値。
+- heartbeat 最終受信から 1,199 ms で RUN、1,201 ms で STOP、effective は停止値。
 - STOP 中に heartbeat → RUN になるが、新しい cmd が来るまで effective は停止値（古い命令が破棄されている）。
 - `on_link_down()` → 即 STOP。
 - RUN 中、cmd/drive の受信から 301 ms 経過で drive だけ停止値（heartbeat は継続）。

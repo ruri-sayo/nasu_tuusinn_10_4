@@ -176,7 +176,7 @@ verify: test
 covers: AD-0007
 verify: test
 
-`SafetyCore(hb_timeout_ms=500, cmd_timeout_ms=300)`。
+`SafetyCore(hb_timeout_ms=1200, cmd_timeout_ms=300)`。heartbeat timeout の根拠は AD-0007 と DEV-0005。
 
 状態遷移：
 

@@ -42,6 +42,16 @@ rule: 6.6
 scope: F-001, REQ-0001, REQ-0002, REQ-0003, REQ-0005, REQ-0008, REQ-0017
 status: open
 reason: REQ-0001（Quest ブラウザだけで成立）、REQ-0002（全天球表示・頭部追従）、REQ-0003・REQ-0005（会話が成立する音声遅延）、REQ-0008（低遅延優先・遅れフレームの破棄）、REQ-0017（tailnet・HTTPS 配信）は、Quest 実機・tailnet・実回線・人の知覚が必要で、開発機の自動 E2E 試験では要件の基準を判定できない。これらは ST（method: manual、H5）で確認する。ただし SAALCO 1.0.0 の `saalco check` は、REQ の検証充足を pytest の `verifies` マーカーだけで判定し、手動 ST の PASS を数えない（`saalco trace` は数える）。また、この ERROR は DEV で WARNING に格下げできない。そのため、手動 ST を実施して PASS を記録した後も、この6件は `saalco check` の ERROR として残る。判定できない試験に `verifies` を付けたり、`verify:` を事実と異なる値に変えたりはしない。
-resolution: 10/4 以降の実機試験で ST-0001〜0005・ST-0011 等を実施し、60-system-e2e-spec.md に method: manual の結果を記録する。SAALCO 側で「手動 ST の PASS を check の充足に数える」か「この ERROR を DEV で格下げ可能にする」かを決め、対応されたら本 DEV を閉じる。
+resolution: 10/4 以降の実機試験で ST-0001〜0005・ST-0011 等を実施し、60-system-e2e-spec.md に method: manual の結果を記録する。SAALCO 側で「手動 ST の PASS を check の充足に数える」か「この ERROR を DEV で格下げ可能にする」かを決め、対応されたら本 DEV を閉じる。 本人の判断（2026-10-02）：この件による saalco check の FAIL は当面許容し、次の SAALCO 改良で対応する。SAALCO リポジトリへの Issue は、2026-10-02 時点では起票できなかった（`gh` CLI が未インストール、Claude 用ブラウザは GitHub 未ログイン、Claude in Chrome 拡張が未接続のため）。Issue の本文は `docs/issues/saalco-check-manual-st.md` に下書きとして置いた。
+decided_by:
+decided_at:
+
+### DEV-0005: 通信途絶停止を補助機能とし heartbeat timeout を 1,200 ms に延ばす
+
+rule: 3.3
+scope: F-001, REQ-0010, AD-0007, DD-0006, src/nasura_comm/safety.py
+status: open
+reason: 競技中は介添人が付き、暴走時に物理的に止める責任は介添人が負う（人間が最終責任を負う、規則 3.3）。そのため、通信（heartbeat）途絶による停止（AD-0007 の L2）は補助機能と位置づける。あわせて、回線の瞬断による誤停止を減らすため、heartbeat timeout を 500 ms から 1,200 ms に延ばす。timeout と要件の上限を同じ値にすると検出の遅れぶん超過する（500 ms の設計で 0.506 秒の E2E FAIL が出た）ため、REQ-0010 の上限は余裕を持たせて「途絶から 1.5 秒以内」とする（REQ の文面は本人の確認後に確定）。安全パラメータの変更は本人が承認した（2026-10-02 の指示）。
+resolution: 恒久的な判断として扱う。介添人の運用をやめる場合、または途絶停止を主たる安全機能に戻す場合に見直す。
 decided_by:
 decided_at:

@@ -122,12 +122,14 @@ verify: test
 | 層 | 場所 | 条件 | 動作 |
 |---|---|---|---|
 | L1 | hub | Quest 入力が 300 ms 途絶、またはデッドマン解放 | 停止命令を送る |
-| L2 | car_ctrl | heartbeat が 500 ms 途絶、または S3 切断 | 状態 STOP、実効命令を停止 |
+| L2 | car_ctrl | heartbeat が 1,200 ms 途絶、または S3 切断 | 状態 STOP、実効命令を停止 |
 | L3 | car_ctrl | 命令が 300 ms 更新されない | その命令を停止値にする |
 | L4 | car_ctrl | `sys/estop` 受信 | 状態 ESTOP にラッチ。`sys/estop_release` までは全命令無視 |
 | L5 | 下流（範囲外） | UDP out が 200 ms 途絶、または state ≠ RUN | 停止（I/F 契約として規定） |
 
-heartbeat だけ届いて命令が古い、という状況を L1 と L3 で潰す。E-STOP の解除はブースからだけ受け付ける。
+heartbeat だけ届いて命令が古い、という状況を L1 と L3 で潰す。
+
+競技中の暴走を物理的に止める責任は介添人が負う。通信途絶による停止（L2）は補助機能と位置づけ、回線の瞬断で誤停止しないよう timeout を長めに取る（DEV-0005）。E-STOP の解除はブースからだけ受け付ける。
 
 ### AD-0008: 車載のローカル I/F
 

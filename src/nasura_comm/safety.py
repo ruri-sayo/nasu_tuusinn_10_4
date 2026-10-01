@@ -3,7 +3,7 @@
 Responsibilities:
     - Track INIT / RUN / STOP / ESTOP from heartbeats, link events and E-STOP.
     - Hold the latest commands and produce the effective (safety-checked)
-      command: layers L2 (heartbeat 500 ms / link down), L3 (command 300 ms)
+      command: layers L2 (heartbeat 1200 ms / link down), L3 (command 300 ms)
       and L4 (E-STOP latch).
 
 Non-responsibilities:
@@ -47,8 +47,13 @@ class SafetyCore:
         kept in RUN, discarded on entering STOP/ESTOP); a state-change flag.
     """
 
-    def __init__(self, hb_timeout_ms: int = 500, cmd_timeout_ms: int = 300) -> None:
-        """Start in INIT with the given timeouts (ms)."""
+    def __init__(self, hb_timeout_ms: int = 1200, cmd_timeout_ms: int = 300) -> None:
+        """Start in INIT with the given timeouts (ms).
+
+        The heartbeat timeout is deliberately long: stopping on link loss is an
+        auxiliary function (an attendant is responsible for physical stops) and
+        short network dropouts must not cause false stops (DEV-0005).
+        """
         self.hb_timeout_ms = hb_timeout_ms
         self.cmd_timeout_ms = cmd_timeout_ms
         self.state = "INIT"
