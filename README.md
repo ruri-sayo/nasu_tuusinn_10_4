@@ -9,6 +9,7 @@
 | 文書 | 内容 |
 |---|---|
 | [docs/features/F-001_nasura-comm/](docs/features/F-001_nasura-comm/) | 要件・設計・試験仕様・逸脱 |
+| [docs/operations.md](docs/operations.md) | 実機構成の運用手順書（起動・操作・E-STOP・トラブル対処） |
 | [docs/input/HANDOFF.md](docs/input/HANDOFF.md) | 実装引き継ぎ（実装順 P1〜P5） |
 | [docs/glossary.md](docs/glossary.md) | 用語対応表 |
 | [docs/rules/SAAL-DEV-RULES.md](docs/rules/SAAL-DEV-RULES.md) | 開発規則（正本） |
