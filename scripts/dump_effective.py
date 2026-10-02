@@ -30,11 +30,10 @@ def main() -> None:
         gap = "" if last is None or now - last <= 0.2 else f"  GAP {int((now - last) * 1000)} ms"
         last = now
         p = json.loads(data)["payload"]
-        d, arm, st = p["drive"], p["arm"], p["stage"]
+        d, st = p["drive"], p["stage"]
         print(
             f"{time.strftime('%H:%M:%S')}.{int(now * 1000) % 1000:03d} {p['state']:5s} "
-            f"v={d['v']:+.2f} w={d['w']:+.2f} arm={'on ' if arm['enable'] else 'off'}"
-            f"#{arm['clutch_id']} p={[round(x, 3) for x in arm['p']]} grip={arm['grip']:.2f} "
+            f"v={d['v']:+.2f} w={d['w']:+.2f} "
             f"stage=({st['x']:+.0f},{st['z']:+.2f}){gap}",
             flush=True,
         )

@@ -13,7 +13,7 @@ status: draft
 covers: AD-0005, AD-0008
 
 1. hub・car_ctrl を起動し、S3 が connected になるまで待つ（上限 10 秒）。
-2. 試験クライアント（role=quest）が deadman=true、left.y=-1 の `in/quest` を 30 Hz で送る。
+2. 試験クライアント（role=quest）が left.y=-1 の `in/quest` を 30 Hz で送る。
 3. `127.0.0.1:47001` で受信する。
 
 合格：1秒以内に `state=RUN` かつ `drive.v ≈ 1.0` の `out/effective` を受信する。受信間隔の平均が 50±10 ms。
@@ -74,6 +74,5 @@ covers: AD-0009
 covers: AD-0005, AD-0007
 
 1. IT-0001 の状態で、試験クライアント（quest）の送信を止める（接続は維持）。
-2. deadman=false の入力を再開する。
 
-合格：1 の停止から 350 ms 以内に drive 0/0 の `out/effective`（state は RUN のまま）。2 の間も drive 0/0。
+合格：1 の停止から 350 ms 以内に drive 0/0 の `out/effective`（state は RUN のまま）。

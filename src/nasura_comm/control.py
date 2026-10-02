@@ -3,7 +3,7 @@
 Responsibilities:
     - Turn Quest input envelopes into periodic ``cmd/*`` envelopes.
     - Emit ``sys/heartbeat`` periodically and compute RTT from acks.
-    - Enforce hub-side safety layer L1 (input timeout / deadman) and the
+    - Enforce hub-side safety layer L1 (input timeout) and the
       E-STOP latch (release only from ``booth``).
 
 Non-responsibilities:
@@ -27,16 +27,12 @@ from nasura_comm.mapping import Mapper
 log = logging.getLogger(__name__)
 
 RTT_EWMA_ALPHA = 0.2
-CMD_TOPICS = ("cmd/drive", "cmd/arm", "cmd/stage")
+CMD_TOPICS = ("cmd/drive", "cmd/stage")
 
 
-def stop_commands(clutch_id: int = 0) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Return the stop values for ``(drive, arm, stage)``."""
-    return (
-        {"v": 0.0, "w": 0.0, "deadman": False},
-        {"enable": False, "clutch_id": clutch_id, "p": [0, 0, 0], "q": [0, 0, 0, 1], "grip": 0.0},
-        {"x": 0.0, "z": 0.0},
-    )
+def stop_commands() -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return the stop values for ``(drive, stage)``."""
+    return {"v": 0.0, "w": 0.0}, {"x": 0.0, "z": 0.0}
 
 
 class ControlCore:
@@ -135,10 +131,9 @@ class ControlCore:
         age = self.last_input_age_ms(now)
         return self.latched or self._input is None or age is None or age > self.input_timeout_ms
 
-    def _commands(self, now: int) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    def _commands(self, now: int) -> tuple[dict[str, Any], dict[str, Any]]:
         if self._should_stop(now):
-            self.mapper.map({})  # releases the arm clutch
-            return stop_commands(self.mapper.clutch_id)
+            return stop_commands()
         assert self._input is not None
         return self.mapper.map(self._input)
 
@@ -154,8 +149,7 @@ class ControlCore:
         stop_now = self._should_stop(now) and self._stopped is False
         if self._next_cmd is None or now >= self._next_cmd or stop_now:
             self._stopped = self._should_stop(now)
-            drive, arm, stage = self._commands(now)
-            for topic, payload in zip(CMD_TOPICS, (drive, arm, stage), strict=True):
+            for topic, payload in zip(CMD_TOPICS, self._commands(now), strict=True):
                 out.append(self._env(topic, payload, wall))
             self._next_cmd = now + self.cmd_period_ms
         return out

@@ -13,9 +13,8 @@ Non-responsibilities:
 Payload semantics of fixed topics (see 30-detailed-design.md DD-0002):
     - ``v``/``w``/``x``/``z`` are normalized to [-1, 1]; ``w`` > 0 is
       counter-clockwise (REP-103).
-    - ``cmd/arm`` ``p`` (m) / ``q`` (quaternion xyzw) are relative to the pose
-      at clutch start, in the WebXR ``local-floor`` frame (right-handed, +y up,
-      -z forward). ``grip`` is in [0, 1].
+    - Arm commands are out of scope (the SO-101 leader arm is a separate
+      feature).
 """
 
 from __future__ import annotations
@@ -51,7 +50,6 @@ FIXED: tuple[TopicSpec, ...] = (
     TopicSpec("sys/estop_release", "down", "rel", None, fixed=True),
     TopicSpec("sys/state", "up", "rel", 5, fixed=True),
     TopicSpec("cmd/drive", "down", "ctrl", 30, fixed=True),
-    TopicSpec("cmd/arm", "down", "ctrl", 30, fixed=True),
     TopicSpec("cmd/stage", "down", "ctrl", 30, fixed=True),
 )
 

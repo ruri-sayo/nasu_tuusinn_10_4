@@ -16,7 +16,7 @@ def test_seq_basic():
 def test_seq_independent():
     f = SeqFilter()
     assert f.accept("hub", "cmd/drive", 5)
-    assert f.accept("hub", "cmd/arm", 1)
+    assert f.accept("hub", "cmd/stage", 1)
     assert f.accept("quest", "cmd/drive", 1)
 
 

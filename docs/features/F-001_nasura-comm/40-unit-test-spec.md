@@ -21,7 +21,7 @@ covers: DD-0001
 
 covers: DD-0002
 
-- 固定 topic 8件が表どおりの方向・チャネル・最大Hzで引ける。
+- 固定 topic 7件が表どおりの方向・チャネル・最大Hzで引ける。`cmd/arm` は登録されていない。
 - 未登録名で `lookup` が `None`。
 - `EXTENSIONS` に固定 topic と同名、または予約接頭辞（`sys/` `cmd/` `in/` `out/`）の項目を入れると `ValueError`（テストでは登録表を検証する関数を直接呼ぶ）。
 - `to_json()` に全登録 topic が含まれる。
@@ -45,19 +45,10 @@ covers: DD-0003
 
 covers: DD-0004
 
-- deadman（left.grip）0.4 → drive 0/0、stage 0/0。0.6 → 有効。
+- left.grip の値（0 でも 1 でも）に関係なく、スティック・ボタンどおりの drive・stage が出る。出力は (drive, stage) の2つで、drive は v・w だけを持つ。
 - デッドゾーン：|stick| = 0.1 → 0。スティック上いっぱい（y=-1）→ v=1。右いっぱい（x=1）→ w=-1。
 - デッドゾーン外の再スケール：|stick| = 0.15 の直後がほぼ 0、1.0 で 1.0 になり、単調増加。
 - a のみ → stage.x=+1、b のみ → -1、両方 → 0。
-
-### UT-0006: アームのクラッチ
-
-covers: DD-0004
-
-- right.grip 立ち上がりで clutch_id が 1 増え、その瞬間の p=[0,0,0]、q≈[0,0,0,1]。
-- 基準から +0.1 m（x）動かすと p≈[0.1,0,0]。基準から y 軸 90° 回すと q が y 軸 90° の四元数。
-- grip を離すと enable=false、p/q が恒等、clutch_id は据え置き。再度握ると +1。
-- right.pose が null のときは enable=false。
 
 ### UT-0007: hub 制御コア
 
@@ -75,12 +66,11 @@ covers: DD-0005
 covers: DD-0006
 
 - 初期は INIT、effective は停止値。
-- heartbeat → RUN。新しい cmd/drive（deadman=true, v=0.5）→ effective の v=0.5。
+- heartbeat → RUN。新しい cmd/drive（v=0.5）→ effective の v=0.5。
 - heartbeat 最終受信から 1,199 ms で RUN、1,201 ms で STOP、effective は停止値。
 - STOP 中に heartbeat → RUN になるが、新しい cmd が来るまで effective は停止値（古い命令が破棄されている）。
 - `on_link_down()` → 即 STOP。
 - RUN 中、cmd/drive の受信から 301 ms 経過で drive だけ停止値（heartbeat は継続）。
-- deadman=false の cmd/drive は v・w が 0。
 
 ### UT-0009: E-STOP ラッチ
 
@@ -95,8 +85,8 @@ covers: DD-0006
 
 covers: DD-0007
 
-- `build_effective` の出力が DD-0007 の形（topic=out/effective、payload に state/drive/arm/stage）で、`decode` を通る。
-- 停止値のとき drive 0/0、arm.enable=false、stage 0/0。
+- `build_effective` の出力が DD-0007 の形（topic=out/effective、payload は state/drive/stage の3キー）で、`decode` を通る。
+- 停止値のとき drive 0/0、stage 0/0。
 
 ### UT-0011: テレメトリ投入の判定
 

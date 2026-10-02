@@ -54,10 +54,10 @@ def running_forward(env: dict[str, Any] | None) -> bool:
 
 
 async def start_driving(system: System, udp: UdpRecorder) -> tuple[WsClient, InputPump]:
-    """Connect as quest, hold the deadman and push the left stick fully forward."""
+    """Connect as quest and push the left stick fully forward (no grip held)."""
     await wait_status(system.base, s3_up, timeout=10)
     quest = await WsClient(system.ws_url, "quest").connect()
-    pump = InputPump(quest, quest_input(deadman=True, ly=-1.0)).start()
+    pump = InputPump(quest, quest_input(ly=-1.0)).start()
     await wait_udp(udp, running_forward, timeout=3)
     return quest, pump
 
@@ -66,12 +66,12 @@ async def start_driving(system: System, udp: UdpRecorder) -> tuple[WsClient, Inp
 async def test_quest_input_becomes_high_level_commands_on_udp_out(
     system: System, udp_out: UdpRecorder
 ) -> None:
-    """Quest controller input reaches the car as drive/arm/stage commands (DD-0004 mapping)."""
+    """Quest controller input reaches the car as drive/stage commands (DD-0004 mapping)."""
     await wait_status(system.base, s3_up, timeout=10)
     quest = await WsClient(system.ws_url, "quest").connect()
     try:
         # Drive: left stick up (y < 0) = forward, left stick left (x < 0) = turn left (w > 0).
-        pump = InputPump(quest, quest_input(deadman=True, lx=-0.7, ly=-0.7)).start()
+        pump = InputPump(quest, quest_input(lx=-0.7, ly=-0.7)).start()
         _, env = await wait_udp(
             udp_out,
             lambda e: eff_state(e) == "RUN" and eff_drive(e)[0] > 0.3 and eff_drive(e)[1] > 0.3,
@@ -83,66 +83,33 @@ async def test_quest_input_becomes_high_level_commands_on_udp_out(
         assert math.hypot(v, w) <= 1.0 + 1e-6
         await pump.stop()
 
-        # Arm clutch: grip pressed with a pose -> enable; relative motion from clutch start.
-        pose0 = {"p": [0.0, 1.0, -0.3], "q": [0.0, 0.0, 0.0, 1.0]}
-        pump = InputPump(
-            quest, quest_input(deadman=True, right_grip=1.0, right_pose=pose0, trigger=0.5)
-        ).start()
-        _, env = await wait_udp(
-            udp_out, lambda e: (e or {}).get("payload", {}).get("arm", {}).get("enable"), 3
-        )
-        clutch = env["payload"]["arm"]["clutch_id"]
-        await pump.stop()
-        pose1 = {"p": [0.1, 1.0, -0.3], "q": [0.0, 0.0, 0.0, 1.0]}
-        pump = InputPump(
-            quest, quest_input(deadman=True, right_grip=1.0, right_pose=pose1, trigger=0.5)
-        ).start()
-        _, env = await wait_udp(
-            udp_out,
-            lambda e: (
-                abs((e or {}).get("payload", {}).get("arm", {}).get("p", [0])[0] - 0.1) < 1e-3
-            ),
-            timeout=3,
-        )
-        arm = env["payload"]["arm"]
-        assert arm["enable"] is True
-        assert arm["clutch_id"] == clutch
-        assert arm["p"] == pytest.approx([0.1, 0.0, 0.0], abs=1e-3)
-        assert arm["grip"] == pytest.approx(0.5, abs=1e-3)
-        await pump.stop()
-
         # Stage: A -> x = +1, right stick up -> z > 0.
-        pump = InputPump(quest, quest_input(deadman=True, a=True, ry=-1.0)).start()
+        pump = InputPump(quest, quest_input(a=True, ry=-1.0)).start()
         _, env = await wait_udp(
             udp_out,
             lambda e: (e or {}).get("payload", {}).get("stage", {}).get("x") == 1.0,
             timeout=3,
         )
         assert env["payload"]["stage"]["z"] > 0.5
-        assert env["payload"]["arm"]["enable"] is False
         await pump.stop()
 
-        # Releasing everything (grip off) -> stop values / enable=false (ST-0006).
-        pump = InputPump(quest, quest_input(deadman=False)).start()
-        await wait_udp(udp_out, lambda e: eff_state(e) == "RUN" and eff_is_stopped(e), 3)
-        await pump.stop()
-    finally:
-        await quest.close()
-
-
-@pytest.mark.verifies("REQ-0012", spec="ST-0010")
-async def test_deadman_release_stops_drive(system: System, udp_out: UdpRecorder) -> None:
-    """Releasing the deadman (left grip) makes the effective drive 0 within 0.5 s."""
-    quest, pump = await start_driving(system, udp_out)
-    try:
-        pump.payload = quest_input(deadman=False, ly=-1.0)
-        t_release = time.monotonic()
-        t, _ = await wait_udp(
-            udp_out, lambda e: eff_drive(e) == (0.0, 0.0), timeout=2, since=t_release
+        # Stage: B -> x = -1.
+        pump = InputPump(quest, quest_input(b=True)).start()
+        _, env = await wait_udp(
+            udp_out,
+            lambda e: (e or {}).get("payload", {}).get("stage", {}).get("x") == -1.0,
+            timeout=3,
         )
-        assert t - t_release <= INPUT_LOSS_STOP_S, f"drive stopped after {t - t_release:.3f}s"
-    finally:
+        assert env is not None
         await pump.stop()
+
+        # Releasing sticks and buttons -> drive and stage return to 0 (ST-0006).
+        pump = InputPump(quest, quest_input()).start()
+        _, env = await wait_udp(udp_out, lambda e: eff_state(e) == "RUN" and eff_is_stopped(e), 3)
+        assert env is not None
+        assert "arm" not in env["payload"], "arm is out of scope for F-001 (REQ-0006)"
+        await pump.stop()
+    finally:
         await quest.close()
 
 
@@ -279,7 +246,7 @@ async def test_hub_restart_recovers_without_touching_car(
     await wait_status(system.base, s3_up, timeout=RECOVERY_S)
     # The quest page reconnects on its own; this client stands in for it.
     quest = await WsClient(system.ws_url, "quest").connect()
-    pump = InputPump(quest, quest_input(deadman=True, ly=-1.0)).start()
+    pump = InputPump(quest, quest_input(ly=-1.0)).start()
     try:
         t_ok, _ = await wait_udp(udp_out, running_forward, timeout=RECOVERY_S, since=t_restart)
         assert t_ok - t_restart <= RECOVERY_S
@@ -339,7 +306,7 @@ async def test_udp_out_is_periodic_safety_judged_output(
             assert env is not None
             assert env["topic"] == "out/effective" and env["src"] == "car_ctrl"
             p = env["payload"]
-            assert set(p) >= {"state", "drive", "arm", "stage"}
+            assert set(p) >= {"state", "drive", "stage"}
         seqs = [e["seq"] for _, e in window if e]
         assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)
 

@@ -320,15 +320,13 @@ def eff_drive(env: dict[str, Any] | None) -> tuple[float, float]:
 
 
 def eff_is_stopped(env: dict[str, Any] | None) -> bool:
-    """True when the effective command carries stop values (drive 0, arm disabled, stage 0)."""
+    """True when the effective command carries stop values (drive 0, stage 0)."""
     p = (env or {}).get("payload", {})
     v, w = eff_drive(env)
-    arm = p.get("arm", {})
     stage = p.get("stage", {})
     return (
         v == 0.0
         and w == 0.0
-        and not arm.get("enable", False)
         and float(stage.get("x", 0.0)) == 0.0
         and float(stage.get("z", 0.0)) == 0.0
     )
@@ -435,22 +433,22 @@ class WsClient:
 
 def quest_input(
     *,
-    deadman: bool = True,
     lx: float = 0.0,
     ly: float = 0.0,
-    right_grip: float = 0.0,
-    right_pose: dict[str, Any] | None = None,
-    trigger: float = 0.0,
     a: bool = False,
     b: bool = False,
     ry: float = 0.0,
 ) -> dict[str, Any]:
-    """Build an ``in/quest`` payload per DD-0004 (Gamepad axes: up is y < 0)."""
+    """Build an ``in/quest`` payload per DD-0004 (Gamepad axes: up is y < 0).
+
+    Grips, triggers and poses are still part of the payload but unused by the mapping;
+    they are sent released / absent, so driving does not depend on holding a grip.
+    """
     return {
         "left": {
             "axes": [lx, ly],
             "trigger": 0.0,
-            "grip": 1.0 if deadman else 0.0,
+            "grip": 0.0,
             "x": False,
             "y": False,
             "thumb": False,
@@ -458,12 +456,12 @@ def quest_input(
         },
         "right": {
             "axes": [0.0, ry],
-            "trigger": trigger,
-            "grip": right_grip,
+            "trigger": 0.0,
+            "grip": 0.0,
             "a": a,
             "b": b,
             "thumb": False,
-            "pose": right_pose,
+            "pose": None,
         },
     }
 

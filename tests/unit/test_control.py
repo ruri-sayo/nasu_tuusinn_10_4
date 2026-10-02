@@ -7,12 +7,12 @@ from nasura_comm.mapping import Mapper
 pytestmark = pytest.mark.verifies("DD-0005", spec="UT-0007")
 
 
-def quest_input(v_stick=-1.0, deadman=True):
+def quest_input(v_stick=-1.0, left_grip=0.0):
     return {
         "left": {
             "axes": [0.0, v_stick],
             "trigger": 0.0,
-            "grip": 1.0 if deadman else 0.0,
+            "grip": left_grip,
             "x": False,
             "y": False,
             "thumb": False,
@@ -40,16 +40,8 @@ def by_topic(envs, topic):
 
 def is_stop(envs):
     d = by_topic(envs, "cmd/drive")[-1]["payload"]
-    a = by_topic(envs, "cmd/arm")[-1]["payload"]
     s = by_topic(envs, "cmd/stage")[-1]["payload"]
-    return (
-        d["v"] == 0
-        and d["w"] == 0
-        and d["deadman"] is False
-        and a["enable"] is False
-        and s["x"] == 0
-        and s["z"] == 0
-    )
+    return d["v"] == 0 and d["w"] == 0 and s["x"] == 0 and s["z"] == 0
 
 
 def test_no_input_gives_stop_and_heartbeat():
@@ -63,7 +55,9 @@ def test_input_timeout():
     core = ControlCore(Mapper())
     core.on_input(env_in("in/quest", quest_input()), 0)
     out = core.tick(200)
-    assert by_topic(out, "cmd/drive")[-1]["payload"]["v"] == pytest.approx(1.0)
+    drive = by_topic(out, "cmd/drive")[-1]["payload"]
+    assert set(drive) == {"v", "w"}
+    assert drive["v"] == pytest.approx(1.0)
     out = core.tick(301)
     assert is_stop(out)
 
@@ -74,7 +68,8 @@ def test_periods():
     for t in range(0, 1001):
         out += core.tick(t)
     assert abs(len(by_topic(out, "sys/heartbeat")) - 10) <= 1
-    for topic in ("cmd/drive", "cmd/arm", "cmd/stage"):
+    assert not by_topic(out, "cmd/arm")
+    for topic in ("cmd/drive", "cmd/stage"):
         assert abs(len(by_topic(out, topic)) - 30) <= 1
 
 

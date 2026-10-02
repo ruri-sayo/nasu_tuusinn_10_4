@@ -10,7 +10,6 @@ from nasura_comm.topics import Registry, TopicSpec
 def _eff(v=0.25):
     return {
         "drive": {"v": v, "w": 0.0},
-        "arm": {"enable": True, "clutch_id": 3, "p": [0.1, 0, 0], "q": [0, 0, 0, 1], "grip": 0.5},
         "stage": {"x": 1.0, "z": 0.0},
     }
 
@@ -22,17 +21,18 @@ def test_build_effective_shape():
     assert env["src"] == "car_ctrl"
     assert env["seq"] == 42
     p = env["payload"]
-    assert set(p) == {"state", "drive", "arm", "stage"}
+    assert set(p) == {"state", "drive", "stage"}
     assert p["state"] == "RUN"
     assert p["drive"] == {"v": 0.25, "w": 0.0}
+    assert p["stage"] == {"x": 1.0, "z": 0.0}
     assert envelope.decode(envelope.encode(env)) is not None
 
 
 @pytest.mark.verifies("DD-0007", spec="UT-0010")
 def test_stop_values():
     p = build_effective("STOP", stop_effective(), 0, 0)["payload"]
+    assert set(p) == {"state", "drive", "stage"}
     assert p["drive"] == {"v": 0.0, "w": 0.0}
-    assert p["arm"]["enable"] is False
     assert p["stage"] == {"x": 0.0, "z": 0.0}
 
 

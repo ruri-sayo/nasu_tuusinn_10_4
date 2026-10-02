@@ -23,19 +23,9 @@ log = logging.getLogger(__name__)
 States = ("INIT", "RUN", "STOP", "ESTOP")
 
 
-def stop_effective(clutch_id: int = 0) -> dict[str, Any]:
+def stop_effective() -> dict[str, Any]:
     """Return the stop value of the effective command."""
-    return {
-        "drive": {"v": 0.0, "w": 0.0},
-        "arm": {
-            "enable": False,
-            "clutch_id": clutch_id,
-            "p": [0, 0, 0],
-            "q": [0, 0, 0, 1],
-            "grip": 0.0,
-        },
-        "stage": {"x": 0.0, "z": 0.0},
-    }
+    return {"drive": {"v": 0.0, "w": 0.0}, "stage": {"x": 0.0, "z": 0.0}}
 
 
 class SafetyCore:
@@ -62,7 +52,6 @@ class SafetyCore:
         self._changed = True
         self._last_hb: int | None = None
         self._cmds: dict[str, tuple[dict[str, Any], int]] = {}
-        self._clutch_id = 0
 
     def _enter(self, state: str, now: int, reason: str) -> None:
         if state == self.state:
@@ -109,10 +98,6 @@ class SafetyCore:
                 self._enter("RUN", now, "heartbeat")
         elif topic.startswith("cmd/") and self.state == "RUN":
             self._cmds[topic] = (env["payload"], now)
-            if topic == "cmd/arm":
-                cid = env["payload"].get("clutch_id")
-                if isinstance(cid, int):
-                    self._clutch_id = cid
 
     def _fresh(self, topic: str, now: int) -> dict[str, Any] | None:
         item = self._cmds.get(topic)
@@ -123,23 +108,12 @@ class SafetyCore:
     def effective(self, now: int) -> dict[str, Any]:
         """Return the effective command at ``now`` (updates timeouts first)."""
         self.update(now)
-        eff = stop_effective(self._clutch_id)
+        eff = stop_effective()
         if self.state != "RUN":
             return eff
         drive = self._fresh("cmd/drive", now)
-        if drive is not None and drive.get("deadman") is True:
+        if drive is not None:
             eff["drive"] = {"v": _f(drive.get("v")), "w": _f(drive.get("w"))}
-        arm = self._fresh("cmd/arm", now)
-        if arm is not None and arm.get("enable") is True:
-            eff["arm"] = {
-                "enable": True,
-                "clutch_id": self._clutch_id,
-                "p": arm.get("p", [0, 0, 0]),
-                "q": arm.get("q", [0, 0, 0, 1]),
-                "grip": _f(arm.get("grip")),
-            }
-        elif arm is not None:
-            eff["arm"]["grip"] = _f(arm.get("grip"))
         stage = self._fresh("cmd/stage", now)
         if stage is not None:
             eff["stage"] = {"x": _f(stage.get("x")), "z": _f(stage.get("z"))}

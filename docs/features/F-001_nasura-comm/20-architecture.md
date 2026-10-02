@@ -97,7 +97,7 @@ covers: REQ-0006, REQ-0015
 verify: test
 
 - Quest → hub：シグナリングと同じ WebSocket（tailnet 経由）で、入力を 30 Hz で送る。
-- hub：入力を High-level 命令（`cmd/drive`・`cmd/arm`・`cmd/stage`）に変換する。変換規則は差し替え可能な純粋関数に閉じ込める。
+- hub：入力を High-level 命令（`cmd/drive`・`cmd/stage`）に変換する。変換規則は差し替え可能な純粋関数に閉じ込める。
 - hub → car_ctrl：S3 の DataChannel 2本で送る。
   - `ctrl`：順序保証なし・再送なし。最新値だけに意味があるもの（命令・heartbeat）
   - `rel`：順序保証・確実配送。取りこぼしが許されないもの（E-STOP・状態・拡張の一部）
@@ -121,7 +121,7 @@ verify: test
 
 | 層 | 場所 | 条件 | 動作 |
 |---|---|---|---|
-| L1 | hub | Quest 入力が 300 ms 途絶、またはデッドマン解放 | 停止命令を送る |
+| L1 | hub | Quest 入力が 300 ms 途絶（ヘッドセットを外した場合など） | 停止命令を送る |
 | L2 | car_ctrl | heartbeat が 1,200 ms 途絶、または S3 切断 | 状態 STOP、実効命令を停止 |
 | L3 | car_ctrl | 命令が 300 ms 更新されない | その命令を停止値にする |
 | L4 | car_ctrl | `sys/estop` 受信 | 状態 ESTOP にラッチ。`sys/estop_release` までは全命令無視 |

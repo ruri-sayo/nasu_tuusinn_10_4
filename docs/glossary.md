@@ -16,8 +16,6 @@
 | 実効命令 | effective command (`out/effective`) | 安全判定後に下流へ出す命令 |
 | 安全状態機械 | safety state machine (`SafetyCore`) | INIT / RUN / STOP / ESTOP |
 | 非常停止 | E-STOP (`sys/estop`) | ESTOP 状態へのラッチ |
-| デッドマン | deadman | 押している間だけ走行を許すスイッチ |
-| クラッチ | clutch | アーム操作の基準姿勢を取り直す操作 |
 | シグナリング | signaling | WebRTC 接続確立のためのメッセージ交換 |
 | セッション | session (S1 / S2 / S3) | S1: car_media→quest、S2: booth→car_media、S3: car_ctrl⇄hub |
 | 介添人 | attendant | 競技中にロボットに付き、暴走時に物理的に止める人。安全の最終責任を負う |

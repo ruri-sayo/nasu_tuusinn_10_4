@@ -6,11 +6,9 @@ import asyncio
 
 import pytest
 from itlib import (
-    QuestSender,
     System,
     drive_of,
     is_stopped_drive,
-    quest_payload,
     reach_run,
     state_of,
 )
@@ -37,14 +35,3 @@ async def test_input_loss_stops_drive(system: System) -> None:
     assert all(state_of(e) == "RUN" and is_stopped_drive(e) for e in later), [
         (state_of(e), drive_of(e)) for e in later
     ]
-
-    # 2. resume with deadman=false -> drive stays 0/0.
-    loop = asyncio.get_running_loop()
-    t_resume = loop.time()
-    resumed = QuestSender(sender.client, quest_payload(deadman=False, left_y=-1.0))
-    system.senders.append(resumed)
-    resumed.start()
-    await asyncio.sleep(1.0)
-    during = [r.env for r in system.udp.since(t_resume) if r.env.get("topic") == "out/effective"]
-    assert during, "no out/effective received"
-    assert all(is_stopped_drive(e) for e in during), [drive_of(e) for e in during]

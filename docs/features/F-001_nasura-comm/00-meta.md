@@ -25,7 +25,7 @@ tier: M
 | 区分 | 内容 |
 |---|---|
 | 対象 | シグナリング、メディア3系統（S1/S2）、制御プレーン（S3）、安全機構、車載ローカルI/F（UDP）、監視 |
-| 対象外 | Raspberry Pi／Drive との接続（別Feature。本Featureは localhost UDP に実効命令を吐くところまで）、アーム制御（IK・Limit）、AIアノテーション、3Dアバター方式、認証 |
+| 対象外 | Raspberry Pi／Drive との接続（別Feature。本Featureは localhost UDP に実効命令を吐くところまで）、アームの操作と制御（SO-101 Leader による操作、IK・Limit。別Feature）、AIアノテーション、3Dアバター方式、認証 |
 
 ## 期限
 

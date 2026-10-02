@@ -94,8 +94,7 @@ class TopicSpec:
 | sys/estop | down | rel | — | `{source:"quest"\|"booth"\|"hub", reason:str}` |
 | sys/estop_release | down | rel | — | `{source:"booth"}` |
 | sys/state | up | rel | 5 | `{state:"INIT"\|"RUN"\|"STOP"\|"ESTOP", since:int, reason:str, dropped:{key:int}}` |
-| cmd/drive | down | ctrl | 30 | `{v:float, w:float, deadman:bool}` |
-| cmd/arm | down | ctrl | 30 | `{enable:bool, clutch_id:int, p:[x,y,z], q:[x,y,z,w], grip:float}` |
+| cmd/drive | down | ctrl | 30 | `{v:float, w:float}` |
 | cmd/stage | down | ctrl | 30 | `{x:float, z:float}` |
 
 `in/*`（ブラウザ→hub、WebSocket のみ）と `out/*`（car_ctrl→ローカルUDP のみ）も固定扱いだが、S3 には流れない。
@@ -115,7 +114,7 @@ class TopicSpec:
 
 意味：
 - `v`・`w`・`x`・`z` は正規化値 [-1, 1]。物理単位への換算は下流で行う。`w` は正で反時計回り（左旋回）、ROS REP-103 に合わせる。
-- `cmd/arm` の `p`（m）・`q`（四元数 xyzw）は、クラッチ開始時の右コントローラ姿勢からの相対姿勢。座標系は WebXR `local-floor`（右手系、y 上、-z 前）。`grip` は [0, 1]。
+- アームの命令（旧 `cmd/arm`）は本Featureでは扱わない（SO-101 Leader による操作は別Feature）。
 
 ### DD-0003: SeqFilter と RateLimiter（filters.py）
 
@@ -138,20 +137,15 @@ verify: test
            "pose": {"p": [x, y, z], "q": [x, y, z, w]}}}
 ```
 
-`axes` は Gamepad API の thumbstick（上が y<0）。`pose` は `local-floor` の grip 姿勢で、取れなければ null。
+`axes` は Gamepad API の thumbstick（上が y<0）。`pose` は `local-floor` の grip 姿勢で、取れなければ null。`trigger`・`grip`・`pose`・`x`・`y` は送られてくるが、変換には使わない。
 
-`Mapper`（状態：クラッチ基準姿勢、clutch_id）。`map(inp) -> (drive, arm, stage)`：
+`Mapper`（状態なし）。`map(inp) -> (drive, stage)`：
 
 | 出力 | 規則（初期値。差し替え可） |
 |---|---|
-| deadman | `left.grip > 0.5` |
-| drive | デッドゾーン 0.15（放射状、外側は 0〜1 に再スケール）後、`v = -left.y`、`w = -left.x`。deadman が false なら v = w = 0 |
-| arm.enable | `right.grip > 0.5` かつ `right.pose` あり |
-| arm クラッチ | enable の立ち上がりで基準姿勢を保存し `clutch_id += 1`。`p = pose.p - ref.p`、`q = ref.q⁻¹ ⊗ pose.q`（正規化） |
-| arm（非enable） | `enable=false, p=[0,0,0], q=[0,0,0,1]`、clutch_id は据え置き |
-| arm.grip | `right.trigger` |
-| stage.x | `a` 押下で +1、`b` 押下で -1、両方・無しで 0。deadman が false なら 0 |
-| stage.z | デッドゾーン後の `-right.y`。deadman が false なら 0 |
+| drive | デッドゾーン 0.15（放射状、外側は 0〜1 に再スケール）後、`v = -left.y`、`w = -left.x` |
+| stage.x | `a` 押下で +1、`b` 押下で -1、両方・無しで 0 |
+| stage.z | デッドゾーン後の `-right.y` |
 | E-STOP | `left.thumb and right.thumb`（両スティック押し込み）→ Quest ページ側で `in/estop` を送る（DD-0014） |
 
 ### DD-0005: hub 制御コア（control.py）
@@ -164,7 +158,7 @@ verify: test
 - `on_input(env, now)`：`in/quest` を保存し受信時刻を記録。`in/estop` → 直ちに `sys/estop`（rel）を返し、`latched = True`。`in/estop_release` は `src == "booth"` のときだけ `sys/estop_release` を返し `latched = False`。それ以外の src からの release は無視してログ。
 - `on_car(env, now)`：`sys/heartbeat_ack` → `rtt_ms = now - t_hub` を更新（最新値と EWMA α=0.2）。`sys/state` → 車載状態を保存。
 - `tick(now) -> list[env]`：
-  - `cmd_period_ms` ごとに `cmd/drive`・`cmd/arm`・`cmd/stage` を出す。入力が `input_timeout_ms` より古い、入力が一度も無い、または `latched` のときは停止値（drive 0/0/false、arm enable=false、stage 0/0）。入力途絶で停止値に切り替わった時点では、周期を待たずにすぐ出す。
+  - `cmd_period_ms` ごとに `cmd/drive`・`cmd/stage` を出す。入力が `input_timeout_ms` より古い、入力が一度も無い、または `latched` のときは停止値（drive 0/0、stage 0/0）。入力途絶で停止値に切り替わった時点では、周期を待たずにすぐ出す。
   - `hb_period_ms` ごとに `sys/heartbeat`（hb は連番、t_hub = now）。
 - seq は topic ごとに ControlCore が採番する。
 - `on_link_up(now)`：S3 が（再）確立したとき、`latched` なら `sys/estop` を再送する（ラッチ中に S3 が張り直された場合も車載を ESTOP に揃えるため）。
@@ -192,7 +186,7 @@ verify: test
 - STOP・ESTOP へ入るときは保持している最新命令を全て破棄する（復帰直後に古い命令で動かないため）。
 - `on_envelope(env, now)`：cmd/* は最新値と受信時刻を保存（RUN のときだけ）。
 - `effective(now) -> dict`：
-  - RUN かつ命令が cmd_timeout_ms 以内：その命令。ただし drive は `deadman == false` なら 0/0。
+  - RUN かつ命令が cmd_timeout_ms 以内：その命令。
   - それ以外：停止値。
 - 状態が変わったら `sys/state` を1回出すためのフラグを立てる。変化が無くても 1 Hz で出す（car 側ループが担当）。
 
@@ -207,7 +201,6 @@ verify: test
 {"topic": "out/effective", "ver": 1, "seq": 42, "ts": 1790000000000, "src": "car_ctrl",
  "payload": {"state": "RUN",
              "drive": {"v": 0.0, "w": 0.0},
-             "arm":   {"enable": false, "clutch_id": 3, "p": [0,0,0], "q": [0,0,0,1], "grip": 0.0},
              "stage": {"x": 0.0, "z": 0.0}}}
 ```
 

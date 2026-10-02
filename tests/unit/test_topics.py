@@ -12,7 +12,6 @@ FIXED = [
     ("sys/estop_release", "down", "rel", None),
     ("sys/state", "up", "rel", 5),
     ("cmd/drive", "down", "ctrl", 30),
-    ("cmd/arm", "down", "ctrl", 30),
     ("cmd/stage", "down", "ctrl", 30),
 ]
 
@@ -25,6 +24,16 @@ def test_fixed_topics(name, direction, channel, hz):
     assert spec.channel == channel
     assert spec.max_rate_hz == hz
     assert spec.fixed is True
+
+
+def test_fixed_table_has_seven_entries():
+    assert len(FIXED) == 7
+    assert len({name for name, *_ in FIXED}) == 7
+
+
+def test_arm_not_registered():
+    assert topics.lookup("cmd/arm") is None
+    assert "cmd/arm" not in repr(topics.to_json())
 
 
 def test_unknown():

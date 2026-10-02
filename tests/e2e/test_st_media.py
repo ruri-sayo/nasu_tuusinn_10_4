@@ -339,7 +339,7 @@ async def test_media_teardown_does_not_disturb_control(dep: Deployment) -> None:
 
     udp = UdpRecorder(system.udp_out)
     quest = await WsClient(system.ws_url, "quest").connect()
-    pump = InputPump(quest, quest_input(deadman=True, ly=-1.0)).start()
+    pump = InputPump(quest, quest_input(ly=-1.0)).start()
     try:
         await wait_udp(udp, lambda e: eff_state(e) == "RUN" and eff_drive(e)[0] > 0.5, 3)
         await wait_frames(car, time.monotonic() + 10)

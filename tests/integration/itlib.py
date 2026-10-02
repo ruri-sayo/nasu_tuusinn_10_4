@@ -48,13 +48,17 @@ def now_ms() -> int:
 # ---------------------------------------------------------------------------
 
 
-def quest_payload(deadman: bool, left_y: float = 0.0) -> dict[str, Any]:
-    """Build an ``in/quest`` payload per DD-0004 (deadman = left.grip > 0.5)."""
+def quest_payload(left_y: float = 0.0) -> dict[str, Any]:
+    """Build an ``in/quest`` payload per DD-0004.
+
+    Grips, triggers and poses are sent but unused by the mapping; the left grip is
+    left released to show that driving does not require holding it.
+    """
     return {
         "left": {
             "axes": [0.0, left_y],
             "trigger": 0.0,
-            "grip": 1.0 if deadman else 0.0,
+            "grip": 0.0,
             "x": False,
             "y": False,
             "thumb": False,
@@ -460,10 +464,10 @@ class System:
         return client
 
     async def start_driving(self, quest: WsClient | None = None) -> QuestSender:
-        """Reach "the IT-0001 state": quest sends deadman=true, left.y=-1 at 30 Hz."""
+        """Reach "the IT-0001 state": quest sends left.y=-1 at 30 Hz."""
         if quest is None:
             quest = await self.connect("quest")
-        sender = QuestSender(quest, quest_payload(deadman=True, left_y=-1.0))
+        sender = QuestSender(quest, quest_payload(left_y=-1.0))
         self.senders.append(sender)
         sender.start()
         return sender

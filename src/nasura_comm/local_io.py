@@ -43,7 +43,7 @@ UDP_OUT_PERIOD_MS = 50
 
 def build_effective(state: str, eff: dict[str, Any], seq: int, ts: int) -> Envelope:
     """Build the ``out/effective`` envelope from a state and effective command."""
-    payload = {"state": state, "drive": eff["drive"], "arm": eff["arm"], "stage": eff["stage"]}
+    payload = {"state": state, "drive": eff["drive"], "stage": eff["stage"]}
     return make("out/effective", payload, "car_ctrl", seq, ts)
 
 

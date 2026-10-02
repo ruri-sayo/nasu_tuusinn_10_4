@@ -10,8 +10,8 @@ def hb(now=0):
     return make("sys/heartbeat", {"hb": 1, "t_hub": now}, "hub", next(_seq), 0)
 
 
-def drive(v=0.5, w=0.0, deadman=True):
-    return make("cmd/drive", {"v": v, "w": w, "deadman": deadman}, "hub", next(_seq), 0)
+def drive(v=0.5, w=0.0):
+    return make("cmd/drive", {"v": v, "w": w}, "hub", next(_seq), 0)
 
 
 def estop():
@@ -26,7 +26,6 @@ def stopped(eff):
     return (
         eff["drive"]["v"] == 0
         and eff["drive"]["w"] == 0
-        and eff["arm"]["enable"] is False
         and eff["stage"]["x"] == 0
         and eff["stage"]["z"] == 0
     )
@@ -45,14 +44,18 @@ def running(core, t=0):
 def test_initial():
     core = SafetyCore()
     assert core.state == "INIT"
-    assert stopped(core.effective(0))
+    eff = core.effective(0)
+    assert set(eff) == {"drive", "stage"}
+    assert stopped(eff)
 
 
 @pytest.mark.verifies("DD-0006", spec="UT-0008")
 def test_run_and_command():
     core = running(SafetyCore())
     core.on_envelope(drive(0.5), 10)
-    assert core.effective(20)["drive"]["v"] == pytest.approx(0.5)
+    eff = core.effective(20)
+    assert set(eff) == {"drive", "stage"}
+    assert eff["drive"]["v"] == pytest.approx(0.5)
 
 
 @pytest.mark.verifies("DD-0006", spec="UT-0008")
@@ -93,14 +96,6 @@ def test_command_timeout_keeps_run():
         core.on_envelope(hb(t), t)
     eff = core.effective(301)
     assert core.state == "RUN"
-    assert eff["drive"]["v"] == 0 and eff["drive"]["w"] == 0
-
-
-@pytest.mark.verifies("DD-0006", spec="UT-0008")
-def test_deadman_false_zeroes_drive():
-    core = running(SafetyCore())
-    core.on_envelope(drive(0.5, 0.5, deadman=False), 1)
-    eff = core.effective(2)
     assert eff["drive"]["v"] == 0 and eff["drive"]["w"] == 0
 
 
