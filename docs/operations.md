@@ -14,19 +14,18 @@
 |---|---|---|---|---|---|
 | 中間サーバ | 操縦ブース | hub（`python -m nasura_comm.hub`） | booth（`/booth/`） | Windows 11 または Ubuntu（未定） | Python 3.10 以上（uv が用意する）、uv、Git、Tailscale、Chromium または Chrome、パイロット用カメラ・マイク（機種は未定） |
 | 車載 Ubuntu PC | NASURA | car_ctrl（`python -m nasura_comm.car`） | car（`/car/`、Chromium のキオスク表示） | Ubuntu（バージョン要確認） | Python 3.10 以上（uv が用意する）、uv、Git、Tailscale、Chromium、Insta360 X4、車載マイク・スピーカー・モニタ |
-| Quest 3S | 操縦ブース | なし（ブラウザのみ） | quest（`/quest/`） | Meta Horizon OS（バージョン要確認） | Quest Browser（追加アプリ不要）。ブースLAN の Wi-Fi に接続する |
+| Quest 3S | 操縦ブース | なし（ブラウザのみ） | quest（`/quest/`） | Meta Horizon OS（バージョン要確認） | Quest Browser、Tailscale（Android 版をサイドロード済み）。インターネットにつながる Wi-Fi に接続する |
 
 ### ネットワーク
 
 | 項目 | 値 |
 |---|---|
 | hub の URL | `https://<hub のホスト名>.<tailnet 名>.ts.net/`（ホスト名・tailnet 名は要確認） |
-| ブースLAN の CIDR | 要確認（中間サーバの subnet route として広告する） |
 | hub の待ち受け | `127.0.0.1:8080`（`tailscale serve` で HTTPS 化） |
 | 車載のローカル出力 | UDP `127.0.0.1:47001`（`out/effective`、20 Hz） |
 | 車載のテレメトリ入力 | UDP `127.0.0.1:47002` |
 
-Quest は tailnet に参加しない。中間サーバを subnet router にして、車載PC からブースLAN 上の Quest へ届くようにする（AD-0010）。
+中間サーバ・車載PC・Quest 3S の3台とも tailnet に参加する（AD-0010）。subnet router は使わないので、会場のブースLAN のアドレス帯を設定する必要は無い。
 
 以下、`<HUB>` は `<hub のホスト名>.<tailnet 名>.ts.net` を表す。
 
@@ -38,7 +37,7 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
 
 ### 2.1 中間サーバ
 
-1. uv と Git を入れる（uv の公式手順：`curl -LsSf https://astral.sh/uv/install.sh | sh`）。
+1. uv と Git を入れる（uv の公式手順：Ubuntu は `curl -LsSf https://astral.sh/uv/install.sh | sh`、Windows 11 は PowerShell で `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`）。
 2. リポジトリを取得し、依存を入れる。
 
    ```bash
@@ -49,16 +48,7 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
    cd nasu_tuusinn_10_4 && uv sync
    ```
 
-3. Tailscale に参加し、ブースLAN を subnet route として広告する。
-
-   ```bash
-   sudo tailscale up --advertise-routes=<ブースLAN の CIDR>
-   ```
-
-   - Tailscale の管理画面で、このマシンの subnet route を承認する。
-   - Windows 11 の場合は、管理者権限の PowerShell で `tailscale up --advertise-routes=<ブースLAN の CIDR>` を実行する。
-   - Ubuntu の場合は、subnet router として IP フォワーディングを有効にする必要がある（Tailscale の subnet router の手順に従う）。
-   - ブースLAN の CIDR は会場ごとに変わる。毎回の手間を減らす方法（autoApprovers）は検討中。
+3. Tailscale に参加する（Ubuntu は `sudo tailscale up`、Windows 11 はタスクトレイの Tailscale からログイン）。
 
 4. hub を HTTPS で公開する（設定は Tailscale 側に残る）。
 
@@ -72,10 +62,10 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
 
 1. uv・Git・Chromium を入れる（Chromium の入れ方は Ubuntu のバージョンによる。要確認）。
 2. リポジトリを取得し、依存を入れる（中間サーバと同じ手順）。
-3. Tailscale に参加し、subnet route を受け入れる。
+3. Tailscale に参加する。
 
    ```bash
-   sudo tailscale up --accept-routes
+   sudo tailscale up
    ```
 
 4. 中間サーバへ届くことを確かめる。
@@ -88,10 +78,11 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
 
 ### 2.3 Quest 3S
 
-1. ブースLAN の Wi-Fi に接続する。
-2. Quest Browser で `https://<HUB>/quest/` を開けるか確かめる。開けない場合は 5.2 の R-1 を参照。
-3. 初回はマイクの許可を求められるので許可する（音声は送らない。接続のために必要）。
-4. ブックマークに登録しておく。
+1. インターネットにつながる Wi-Fi に接続する。
+2. Tailscale アプリで tailnet に接続する（VPN を有効にする）。本人が設定済み。
+3. Quest Browser で `https://<HUB>/quest/` を開けるか確かめる。開けない場合は 5.2 の R-1 を参照。
+4. 初回はマイクの許可を求められるので許可する（音声は送らない。接続のために必要）。
+5. ブックマークに登録しておく。
 
 ### 2.4 Insta360 X4
 
@@ -145,9 +136,10 @@ Chromium で `https://<HUB>/booth/` を開き、カメラとマイクを許可�
 
 ### 3.4 Quest 3S：quest ページを開く
 
-1. Quest Browser で `https://<HUB>/quest/` を開く。
-2. 「S1: connected」になり、ボタンが「VR で見る」に変わるまで待つ。
-3. 「VR で見る」を押す。360°映像が表示され、車載音声が聞こえる。
+1. Tailscale アプリで VPN が有効になっていることを確かめる（スリープ明けなどで切れていることがある。要確認）。
+2. Quest Browser で `https://<HUB>/quest/` を開く。
+3. 「S1: connected」になり、ボタンが「VR で見る」に変わるまで待つ。
+4. 「VR で見る」を押す。360°映像が表示され、車載音声が聞こえる。
 
 ### 3.5 起動後の確認
 
@@ -259,9 +251,10 @@ tailscale ping <hub のホスト名>
 
 | 症状 | 原因の候補 | 対処 |
 |---|---|---|
-| Quest で `https://<HUB>/quest/` が開けない | Quest が `*.ts.net` を名前解決できない（R-1） | hub を `scripts/run_hub.sh --bind 0.0.0.0 --tls-self-signed` で起動し、Quest で `https://<中間サーバの LAN IP>:8080/quest/` を開いて証明書の警告を1回許可する。車載側は `run_car.sh` を使わず、5.2.1 の手順で起動する |
+| Quest で `https://<HUB>/quest/` が開けない | Quest の Tailscale が切れている | Tailscale アプリで VPN を有効にしてから再読み込みする |
+| 同上（Tailscale は有効） | `*.ts.net` を名前解決できない（R-1） | hub を `scripts/run_hub.sh --bind 0.0.0.0 --tls-self-signed` で起動し、Quest で `https://<中間サーバの LAN IP>:8080/quest/` を開いて証明書の警告を1回許可する。車載側は `run_car.sh` を使わず、5.2.1 の手順で起動する |
 | S1 が `connected` にならない（Quest に映像が来ない） | Quest のマイク許可が無い（mDNS で候補が隠れる） | quest ページを再読み込みし、マイクを許可する |
-| 同上 | subnet route が未承認、または車載で `--accept-routes` が無い | Tailscale 管理画面で route を承認する。車載で `sudo tailscale up --accept-routes` |
+| 同上 | Quest または車載PC の Tailscale が切れている | 両方で Tailscale が接続中か確かめる。車載PC で `tailscale ping <Quest のホスト名>` |
 | 画面上部に赤帯で「別の画面に置き換えられました」 | 同じ役割のページを別の場所で開いた | 不要なほうを閉じる。使うほうを再読み込みする |
 | car ページに「カメラ「Insta360」が見つかりません」 | X4 が Webcam Mode でない、USB 未接続、ラベルが違う | 接続と USB モードを確認する。ラベルが違う場合は hub を `--s1-device-label` 付きで起動し直す |
 | car ページの `camera:` が黄色 | X4 が 1920×960 を出していない | 表示された解像度を記録する（要確認事項）。必要なら `--s1-width` `--s1-height` で合わせる |
@@ -315,8 +308,7 @@ chromium --kiosk --ignore-certificate-errors --autoplay-policy=no-user-gesture-r
 | 車載PC の Ubuntu のバージョンと Chromium の入れ方 | 車載PC |
 | Quest 3S の OS のバージョン | Quest |
 | hub のホスト名・tailnet 名（`<HUB>`） | Tailscale 管理画面 |
-| ブースLAN の CIDR | 会場 |
-| ブースLAN の CIDR を毎回広告する手間の削減（autoApprovers 等） | Tailscale 管理画面 |
+| Quest のスリープ明けに Tailscale の VPN が切れないか | Quest |
 | パイロット用カメラ・マイクの機種（未定） | ブース |
 | X4 の Linux 上のデバイス名、1920×960 で取れるか | 車載PC |
 | UDP 出力を Drive・アームにつなぐか | 機体担当 |

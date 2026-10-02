@@ -28,6 +28,7 @@ status: draft
 | DD-0008 | hub の WebSocket ping を 10 秒周期（pong 待ち 5 秒）にした | 5 秒周期では負荷時にブラウザの pong が遅れ、3ページが同時に切断された（E2E 全体実行で検出）。安全系は S3 の heartbeat で担保しており WS の ping は画面の消失検出だけに使う | なし（設計に周期の定めなし） |
 | DD-0010 | car_ctrl は SIGTERM で正常終了する（メインタスクを cancel） | systemd の停止や試験終了時にログと Coverage を書き出すため | なし |
 | DD-0006 | heartbeat timeout を 500 ms → 1,200 ms（REQ-0010 を 1.5 秒以内、AD-0007・UT-0008・IT-0002・ST-0008 も更新） | 本人の指示（DEV-0005）。500 ms では要件 500 ms に検出遅れの余裕が無く 0.506 秒の FAIL が出た | 10、20、30、40、50、60 |
+| AD-0010 / DD-0015 | subnet router をやめ、Quest 3S も tailnet に参加させる構成に変更（コード変更なし） | 会場ごとにブースLAN の CIDR が変わり、subnet route の設定・承認が手間（本人が Quest を tailnet に参加済み、2026-10-02）。REQ-0001 の「追加アプリを入れず」との整合は本人に確認中 | 20（AD-0002、AD-0004、AD-0010、R-1）、30（DD-0015）、60（事前条件） |
 | DD-0001 | `decode` は bytes も受ける。`src` は空でない文字列であれば受理し、値の集合は検査しない | UDP in の送信元（ローカルモジュール）は任意名で、src は `car_local` に上書きするため | なし（設計の範囲内） |
 
 ## 設計に無い副作用

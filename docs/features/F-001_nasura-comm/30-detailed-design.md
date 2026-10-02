@@ -372,7 +372,7 @@ verify: review
 - `fake_telemetry.py`：UDP in に任意 topic を任意レートで投げる検証用ツール。
 - `dump_effective.py`：UDP out を受けて1行ずつ表示する検証用ツール（ST-0006・ST-0008。200 ms を超える間隔を GAP と表示）。
 - `run_car.sh` は `FAKE_MEDIA=1` で Chromium の fake device を使う（開発機での確認用）。
-- README に Tailscale 設定を記載：中間サーバ `tailscale up --advertise-routes=<ブースLAN CIDR>` と管理画面での承認、車載 `tailscale up --accept-routes`。
+- README と `docs/operations.md` に Tailscale 設定を記載：中間サーバ・車載PC・Quest 3S の全てを tailnet に参加させ、中間サーバで `tailscale serve --bg 8080` を実行する（subnet router は使わない）。
 - 開発機での確認用に、Chromium の `--use-fake-device-for-media-stream` でカメラ無しでも S1/S2 を張れることを README に記載。
 
 ### DD-0016: ログ（log.py）

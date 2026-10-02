@@ -16,7 +16,7 @@ status: draft
 │     ▲ S1: 360映像+車載音声 ────────┼──────────────┼──── X4 / 車載マイク             │
 │     │ WS: 入力 30Hz                │              │     ▼ S2: パイロット映像+音声   │
 │     ▼                              │   tailnet    │       → モニタ全画面・スピーカ │
-│  [中間サーバ]  ← subnet router     │══════════════│                                 │
+│  [中間サーバ]                      │══════════════│                                 │
 │   hub (Python)                     │              │   car_ctrl (Python)             │
 │     ├ HTTPS配信 / WS シグナリング  │              │     ├ 安全状態機械              │
 │     ├ 入力→High-level命令          │── S3 (DC) ───┼──   ├ UDP out 127.0.0.1:47001   │
@@ -68,7 +68,7 @@ verify: review
   - S1：`motion`（フレームレート維持）、上限 2.5 Mbps
   - S2：`detail`（解像度維持）、640×480・15 fps・上限 400 kbps
 - 音声は Opus、上限 32 kbps。エコーキャンセルはブラウザ標準を有効にする。
-- メディアは中間サーバで中継・再エンコードしない（SFU不要）。パケットは subnet router として中間サーバを物理的に通る。
+- メディアは中間サーバで中継・再エンコードしない（SFU不要）。Quest も tailnet に参加しているので、S1 は車載PC と Quest の間を tailnet で直接流れる。
 
 上り帯域予算：
 
@@ -88,7 +88,7 @@ verify: test
 - 全ノードは hub の `wss://<hub>/ws` に接続し、自分の role を名乗る（hello）。
 - hub は role ごとに接続を1本だけ保持する（同じ role が再接続したら古い接続を閉じる）。
 - セッションの両端が揃った時点で、hub は offerer に `restart` を送り、offerer は新しい PeerConnection を作って offer する。片端が切れたら、残った側に `peer down` を通知する。
-- ICE は trickle。STUN/TURN サーバは使わず（`iceServers: []`）、tailnet と subnet route 上の host 候補だけで接続する。
+- ICE は trickle。STUN/TURN サーバは使わず（`iceServers: []`）、tailnet 上の host 候補（`100.x` のアドレス）だけで接続する。
 - 各ページは ICE の失敗・3秒以上の切断を検出したら hub に `restart_req` を送る。WebSocket 自体は指数バックオフ（1→2→4→5秒上限）で再接続する。
 
 ### AD-0005: 制御プレーン
@@ -96,7 +96,7 @@ verify: test
 covers: REQ-0006, REQ-0015
 verify: test
 
-- Quest → hub：シグナリングと同じ WebSocket（ブースLAN内）で、入力を 30 Hz で送る。
+- Quest → hub：シグナリングと同じ WebSocket（tailnet 経由）で、入力を 30 Hz で送る。
 - hub：入力を High-level 命令（`cmd/drive`・`cmd/arm`・`cmd/stage`）に変換する。変換規則は差し替え可能な純粋関数に閉じ込める。
 - hub → car_ctrl：S3 の DataChannel 2本で送る。
   - `ctrl`：順序保証なし・再送なし。最新値だけに意味があるもの（命令・heartbeat）
@@ -154,15 +154,15 @@ covers: REQ-0017
 verify: review
 
 - hub は `127.0.0.1:8080` で待ち受け、`tailscale serve` で HTTPS 化して `https://<hub>.<tailnet>.ts.net/` として公開する。
-- 中間サーバを subnet router にする（`--advertise-routes=<ブースLAN CIDR>`、管理画面で承認）。車載PCは `--accept-routes`。これで車載からブースLAN上の Quest に届く。
+- Quest 3S にも Tailscale を入れて tailnet に参加させる（本人が設定済み）。全ノードが tailnet 上にあるので、subnet router は使わない。会場ごとに変わるブースLAN の CIDR に依存しない。
 - Quest ページは起動時にマイク権限を取得してすぐ解放する。Chromium は権限が無いと自分の host 候補を mDNS 名（`.local`）で隠すため、車載から Quest の実IPが見えず S1 が張れなくなるのを防ぐ。
-- Quest→車載の戻りは subnet router の SNAT で成立する（車載から見て中間サーバの LAN IP 経由の peer-reflexive 候補になる）。
+- S1 は車載PC と Quest の tailnet アドレス同士で張る。Quest の Tailscale が切れている（VPN が無効）と、S1 も quest ページの表示もできない。
 
 ## リスク
 
 | ID | リスク | 影響 | 対処 |
 |---|---|---|---|
-| R-1 | tailnet 外の Quest が `*.ts.net` の名前を解決できない | quest ページが開けない | 本人は解決済みと判断（Mac テスト）。だめなら hub を `--bind 0.0.0.0 --tls-self-signed` でブースLANにも出し、Quest で証明書警告を一度許可する |
+| R-1 | Quest の Tailscale が無効、または `*.ts.net` を名前解決できない | quest ページが開けない、S1 が張れない | Quest を tailnet に参加させ、MagicDNS を有効にする（本人が設定済み）。どうしても使えない場合は hub を `--bind 0.0.0.0 --tls-self-signed` で出し、Quest で証明書警告を一度許可する（この場合 S1 の経路は別途確認が要る） |
 | R-2 | 車載 Chromium の映像エンコードがソフトウェアになり CPU が足りない | S1 のフレーム落ち | `--s1-codec` で H264/VP8 を切替、解像度を下げる。ST-0012 で CPU を測る |
 | R-3 | 主催者回線で UDP が通らず Tailscale が DERP 中継になる | 遅延・帯域の悪化 | 現地で `tailscale ping` を確認（ST-0011）。本Featureでは対処しない |
 | R-4 | 認証が無い | tailnet 内の誰でも操作できる | tailnet の ACL で担保。PoC では許容 |

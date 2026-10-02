@@ -8,7 +8,7 @@ status: draft
 
 実機（車載PC＋X4、中間サーバ＋カメラ・マイク、Quest 3S）で人間が実施する（H5）。回線は、可能なら 5G モバイルルータ経由で本番に近づける。各項目の `result:`（PASS/FAIL）・`commit:`（実施した commit のフル hash）・`executed_by:`・`executed_at:` を埋め、メモは「結果：」欄に書く。開発機で自動化できる部分は `tests/e2e/` にある（REQ-0001・0002・0003・0005・0008・0017 は実機でのみ判定できる。DEV-0004）。
 
-事前条件：Tailscale の subnet route が承認済み、hub・car_ctrl・car_media・booth が起動済み、Quest で `https://<hub>/quest/` を開いて Enter VR 済み。
+事前条件：中間サーバ・車載PC・Quest 3S が tailnet に参加済み、hub・car_ctrl・car_media・booth が起動済み、Quest で `https://<hub>/quest/` を開いて Enter VR 済み。
 
 ### ST-0001: Quest のブラウザだけで操縦席が成立する
 

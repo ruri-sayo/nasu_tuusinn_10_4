@@ -69,11 +69,7 @@ uv run python scripts/dump_effective.py
 
 中間サーバ（hub・booth）：
 
-```bash
-sudo tailscale up --advertise-routes=<ブースLANのCIDR>
-```
-
-管理画面で subnet route を承認したあと、HTTPS で公開する（初回のみ）。
+全マシン（中間サーバ・車載PC・Quest 3S）を tailnet に参加させる（subnet router は使わない）。中間サーバで HTTPS 公開する（初回のみ）。
 
 ```bash
 tailscale serve --bg 8080
@@ -88,16 +84,12 @@ booth は中間サーバの Chromium で `https://<hub>.<tailnet>.ts.net/booth/`
 車載PC（car_ctrl・car_media）：
 
 ```bash
-sudo tailscale up --accept-routes
-```
-
-```bash
 HUB_HOST=<hub>.<tailnet>.ts.net scripts/run_car.sh
 ```
 
-Quest 3S：Quest Browser で `https://<hub>.<tailnet>.ts.net/quest/` を開き、マイクを許可して「VR で見る」。
+Quest 3S：Tailscale を有効にした状態で、Quest Browser で `https://<hub>.<tailnet>.ts.net/quest/` を開き、マイクを許可して「VR で見る」。
 
-`*.ts.net` を Quest が解決できない場合（R-1）は、hub を `--bind 0.0.0.0 --tls-self-signed` で起動し、`https://<中間サーバのLAN IP>:8080/quest/` を開いて証明書警告を一度許可する。車載側は `run_car.sh` の代わりに `--insecure` を付けて car_ctrl を起動する。
+手順の詳細は [docs/operations.md](docs/operations.md)。`*.ts.net` が使えない場合（R-1）は、hub を `--bind 0.0.0.0 --tls-self-signed` で起動し、`https://<中間サーバのLAN IP>:8080/quest/` を開いて証明書警告を一度許可する。車載側は `run_car.sh` の代わりに `--insecure` を付けて car_ctrl を起動する。
 
 ## ローカル I/F（車載）
 
