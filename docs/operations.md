@@ -12,7 +12,7 @@
 
 | マシン | 置き場所 | 動かすもの | 開くページ | OS | 必要なもの |
 |---|---|---|---|---|---|
-| 中間サーバ | 操縦ブース | hub（`python -m nasura_comm.hub`） | booth（`/booth/`） | 要確認 | Python 3.10 以上（uv が用意する）、uv、Git、Tailscale、Chromium または Chrome、パイロット用カメラ・マイク（機種は要確認） |
+| 中間サーバ | 操縦ブース | hub（`python -m nasura_comm.hub`） | booth（`/booth/`） | Windows 11 または Ubuntu（未定） | Python 3.10 以上（uv が用意する）、uv、Git、Tailscale、Chromium または Chrome、パイロット用カメラ・マイク（機種は未定） |
 | 車載 Ubuntu PC | NASURA | car_ctrl（`python -m nasura_comm.car`） | car（`/car/`、Chromium のキオスク表示） | Ubuntu（バージョン要確認） | Python 3.10 以上（uv が用意する）、uv、Git、Tailscale、Chromium、Insta360 X4、車載マイク・スピーカー・モニタ |
 | Quest 3S | 操縦ブース | なし（ブラウザのみ） | quest（`/quest/`） | Meta Horizon OS（バージョン要確認） | Quest Browser（追加アプリ不要）。ブースLAN の Wi-Fi に接続する |
 
@@ -56,7 +56,9 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
    ```
 
    - Tailscale の管理画面で、このマシンの subnet route を承認する。
-   - 中間サーバが Linux の場合は、subnet router として IP フォワーディングを有効にする必要がある（Tailscale の subnet router の手順に従う）。OS が macOS・Windows の場合の扱いは要確認。
+   - Windows 11 の場合は、管理者権限の PowerShell で `tailscale up --advertise-routes=<ブースLAN の CIDR>` を実行する。
+   - Ubuntu の場合は、subnet router として IP フォワーディングを有効にする必要がある（Tailscale の subnet router の手順に従う）。
+   - ブースLAN の CIDR は会場ごとに変わる。毎回の手間を減らす方法（autoApprovers）は検討中。
 
 4. hub を HTTPS で公開する（設定は Tailscale 側に残る）。
 
@@ -64,7 +66,7 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
    tailscale serve --bg 8080
    ```
 
-5. Tailscale の管理画面で、tailnet の HTTPS 証明書（MagicDNS・HTTPS）が有効であることを確認する（要確認）。
+5. tailnet の HTTPS 証明書（MagicDNS・HTTPS）は有効にしてある（確認済み）。
 
 ### 2.2 車載 Ubuntu PC
 
@@ -105,8 +107,16 @@ Quest は tailnet に参加しない。中間サーバを subnet router にし�
 
 ### 3.1 中間サーバ：hub を起動する
 
+Ubuntu：
+
 ```bash
 cd nasu_tuusinn_10_4 && scripts/run_hub.sh
+```
+
+Windows 11（PowerShell。`run_hub.sh` は bash 用なので使えない）：
+
+```powershell
+cd nasu_tuusinn_10_4; uv run python -m nasura_comm.hub --port 8080
 ```
 
 - `[hint] HTTPS is not served yet` と出たら、2.1 の手順 4 を実行する。
@@ -181,7 +191,7 @@ booth ページで次を確かめる（4 章の操作に入る前）。
 ### 4.3 介添人
 
 - 暴走時に**物理的に止めるのは介添人の責任**である。通信による停止は補助機能に過ぎない（DEV-0005）。
-- 物理的な止め方（車体の非常停止スイッチ、電源の遮断、押さえ方など）は要確認。
+- 物理的に止めるときは、**車体の緊急停止ボタンを押す**。
 - 異常に気づいたら、まず物理的に止め、同時にブース担当へ E-STOP を依頼する。
 - E-STOP の解除はブース担当だけができる。介添人が安全を確認するまで解除しないよう、事前に取り決めておく。
 
@@ -301,14 +311,12 @@ chromium --kiosk --ignore-certificate-errors --autoplay-policy=no-user-gesture-r
 
 | 項目 | 確認先 |
 |---|---|
-| 中間サーバの OS とバージョン | 中間サーバ |
+| 中間サーバの OS（Windows 11 か Ubuntu か） | 中間サーバ |
 | 車載PC の Ubuntu のバージョンと Chromium の入れ方 | 車載PC |
 | Quest 3S の OS のバージョン | Quest |
 | hub のホスト名・tailnet 名（`<HUB>`） | Tailscale 管理画面 |
 | ブースLAN の CIDR | 会場 |
-| tailnet の HTTPS 証明書が有効か | Tailscale 管理画面 |
-| 中間サーバの subnet router 設定（OS ごとの手順） | 中間サーバ |
-| パイロット用カメラ・マイクの機種 | ブース |
+| ブースLAN の CIDR を毎回広告する手間の削減（autoApprovers 等） | Tailscale 管理画面 |
+| パイロット用カメラ・マイクの機種（未定） | ブース |
 | X4 の Linux 上のデバイス名、1920×960 で取れるか | 車載PC |
-| 介添人の物理的な止め方 | 機体担当 |
 | UDP 出力を Drive・アームにつなぐか | 機体担当 |
