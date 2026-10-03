@@ -22,3 +22,7 @@
 | ROS 2走行アダプタ | ROS 2 drive adapter (`ros2_drive_adapter`) | `out/effective` を受信し、安全な `sensor_msgs/msg/Joy` をROS 2へ発行する車載プロセス |
 | 走行入力 topic | drive input topic (`/nasura/drive_joy`) | `joy_motor_controller` の `joy` 購読先をリマップした、NASURA専用のROS 2 topic |
 | 中立走行入力 | neutral drive input | `axes[0] = 0.0` かつ `axes[1] = 0.0` の `sensor_msgs/msg/Joy` |
+| 操作側アーム | leader arm | 人が直接動かし、各関節位置を読み取る SO-101 |
+| 追従側アーム | follower arm | 操作側アームの関節位置へ追従する SO-101 |
+| アーム事前検査 | arm preflight (`so101_preflight`) | 較正ファイル、udevルール、USB個体、実行環境を実機駆動前に検査する処理 |
+| 相対目標制限 | relative target limit (`max_relative_target`) | 1制御周期で追従側アームへ与える関節位置変化の上限 |
