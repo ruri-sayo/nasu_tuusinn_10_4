@@ -366,7 +366,8 @@ INDEX_HTML = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:2rem}
 a{color:#8cf;font-size:1.4rem;display:block;margin:.8rem 0}</style></head><body>
 <h1>NASURA hub</h1>
-<a href="/quest/">quest（Quest 3S）</a><a href="/booth/">booth（操縦ブース）</a>
+<a href="/quest/">quest（Quest 3S）</a><a href="/pilot/">pilot（Quest 無しの操縦画面・暫定）</a>
+<a href="/booth/">booth（操縦ブース）</a>
 <a href="/car/">car（車載モニタ）</a><a href="/status">/status</a></body></html>"""
 
 
@@ -412,10 +413,10 @@ def create_app(cfg: HubConfig, events: EventLog | None = None) -> web.Applicatio
     app.router.add_get("/status", hub.status)
     app.router.add_get("/config.json", hub.config_json)
     app.router.add_get("/topics.json", hub.topics_json)
-    for name in ("quest", "booth", "car"):
+    for name in ("quest", "pilot", "booth", "car"):
         app.router.add_get(f"/{name}", redirect(f"/{name}/"))
         app.router.add_get(f"/{name}/", page(name))
-    for name in ("quest", "booth", "car", "common", "vendor"):
+    for name in ("quest", "pilot", "booth", "car", "common", "vendor"):
         if (web_dir / name).is_dir():
             app.router.add_static(f"/{name}/", web_dir / name)
     app.on_startup.append(hub.start)
