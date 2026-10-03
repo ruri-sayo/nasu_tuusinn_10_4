@@ -19,3 +19,6 @@
 | シグナリング | signaling | WebRTC 接続確立のためのメッセージ交換 |
 | セッション | session (S1 / S2 / S3) | S1: car_media→quest、S2: booth→car_media、S3: car_ctrl⇄hub |
 | 介添人 | attendant | 競技中にロボットに付き、暴走時に物理的に止める人。安全の最終責任を負う |
+| ROS 2走行アダプタ | ROS 2 drive adapter (`ros2_drive_adapter`) | `out/effective` を受信し、安全な `sensor_msgs/msg/Joy` をROS 2へ発行する車載プロセス |
+| 走行入力 topic | drive input topic (`/nasura/drive_joy`) | `joy_motor_controller` の `joy` 購読先をリマップした、NASURA専用のROS 2 topic |
+| 中立走行入力 | neutral drive input | `axes[0] = 0.0` かつ `axes[1] = 0.0` の `sensor_msgs/msg/Joy` |

@@ -141,6 +141,25 @@ Chromium で `https://<HUB>/booth/` を開き、カメラとマイクを許可�
 3. 「S1: connected」になり、ボタンが「VR で見る」に変わるまで待つ。
 4. 「VR で見る」を押す。360°映像が表示され、車載音声が聞こえる。
 
+### 3.4.1 ROS 2走行制御を同時起動する場合
+
+駆動輪を浮かせ、物理E-stopを有効にしてから、3.3の `run_car.sh` の代わりに次を実行する。
+
+```bash
+HUB_HOST=<HUB> scripts/run_car_ros2.sh
+```
+
+これは `joy_motor_controller` の購読先を `/nasura/drive_joy` へリマップし、UDP実効命令アダプタ、
+`car_ctrl`、`car_media` を同時起動する。`joy_node` や `socket_cmd_publisher` は同時起動しない。
+
+Tailscale Serveを設定できず、hubを `--bind 0.0.0.0 --tls-self-signed` で起動した場合の車載側は次を使う。
+
+```bash
+HUB_HOST=<hubのTailscale IP>:8080 INSECURE_TLS=1 scripts/run_car_ros2.sh
+```
+
+Quest Browserは `https://<hubのTailscale IP>:8080/quest/` を開き、初回の証明書警告を許可する。
+
 ### 3.5 起動後の確認
 
 booth ページで次を確かめる（4 章の操作に入る前）。
