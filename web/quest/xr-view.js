@@ -7,7 +7,10 @@
 // following head pose; expose each XR frame to a callback (controller input).
 // Non-responsibilities: stereo/parallax (mono 360° on both eyes), networking.
 
-export function createXRView({ canvas, video, button, hint, onFrame, onSessionChange }) {
+// layout: 'equirect' (default, one 2:1 panorama), or the two-strip frame the X4
+// webcam mode sends (two 180° halves stacked top/bottom): 'tb' puts the top strip
+// in front, 'bt' the bottom strip.
+export function createXRView({ canvas, video, button, hint, onFrame, onSessionChange, layout = 'equirect' }) {
   let session = null;
   let gl = null;
   let program = null;
@@ -41,7 +44,7 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
     }
     supported = await navigator.xr.isSessionSupported('immersive-vr').catch(() => false);
     hint.textContent = supported
-      ? '映像が届いたら「VR で見る」を押してください。'
+      ? `映像が届いたら「VR で見る」を押してください。（layout: ${layout}）`
       : 'immersive-vr を利用できません。Quest Browser の設定を確認してください。';
     updateButton();
   }
@@ -63,7 +66,21 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
     gl = canvas.getContext('webgl', { alpha: false, antialias: true, xrCompatible: true });
     if (!gl) throw new Error('WebGL を初期化できません。');
     const vs = compile(gl.VERTEX_SHADER, 'attribute vec3 p; attribute vec2 uv; uniform mat4 mvp; varying vec2 v; void main(){gl_Position=mvp*vec4(p,1.0);v=uv;}');
-    const fs = compile(gl.FRAGMENT_SHADER, 'precision mediump float; uniform sampler2D tex; varying vec2 v; void main(){gl_FragColor=texture2D(tex,vec2(v.x,1.0-v.y));}');
+    // L = 0: equirectangular. L = 1 / 2: front strip (u in [0.25, 0.75)) is the
+    // top / bottom half of the frame, the back strip is the other half.
+    const fs = compile(gl.FRAGMENT_SHADER, [
+      'precision mediump float; uniform sampler2D tex; uniform float L; varying vec2 v;',
+      'void main(){',
+      '  vec2 t = vec2(v.x, 1.0 - v.y);',
+      '  if (L > 0.5) {',
+      '    float u = fract(v.x - 0.25);',
+      '    float back = step(0.5, u);',
+      '    float strip = L > 1.5 ? 1.0 - back : back;',
+      '    t = vec2(fract(u * 2.0), strip * 0.5 + t.y * 0.5);',
+      '  }',
+      '  gl_FragColor = texture2D(tex, t);',
+      '}',
+    ].join('\n'));
     program = gl.createProgram();
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
@@ -73,10 +90,12 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
     const vertices = [];
     const rows = 64;
     const columns = 128;
+    // Seen from inside: image center (u = 0.5) is straight ahead (-z), and u grows
+    // toward the viewer's right (+x), so the panorama is neither mirrored nor turned.
     const point = (azimuth, latitude) => [
-      -10 * Math.cos(latitude) * Math.sin(azimuth),
+      10 * Math.cos(latitude) * Math.sin(azimuth - Math.PI),
       10 * Math.sin(latitude),
-      -10 * Math.cos(latitude) * Math.cos(azimuth),
+      -10 * Math.cos(latitude) * Math.cos(azimuth - Math.PI),
     ];
     for (let y = 0; y < rows; y += 1) {
       const v0 = y / rows;
@@ -105,6 +124,7 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
     gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 20, 12);
     vertexCount = vertices.length / 5;
     mvpLocation = gl.getUniformLocation(program, 'mvp');
+    gl.uniform1f(gl.getUniformLocation(program, 'L'), { tb: 1, bt: 2 }[layout] || 0);
     texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

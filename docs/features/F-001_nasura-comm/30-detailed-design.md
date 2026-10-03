@@ -345,6 +345,7 @@ verify: review
 - 起動時に `getUserMedia({audio:true})` を1回取り、すぐ全トラックを stop する（AD-0010 の mDNS 回避。Quest の音声は送らない）。
 - S1 answerer（←car_media）。
 - 描画：Mac→Quest テストで動いた既存の XR ビューア（mac-camera-vr の `createWebXR360Renderer`、生 WebGL）を `xr-view.js` として流用する。three.js は使わない。参照空間は `local-floor`（取れなければ `local`）とし、コントローラ姿勢も同じ空間で読む。
+- 写像：正距円筒の中央（u = 0.5）を正面、u の増加を右とする（内側から見て鏡像にしない）。URL パラメータ `layout` で映像の並びを指定する：省略時（`equirect`）は 2:1 の正距円筒1枚。`tb`・`bt` は X4 の Webcam Mode が送る「180° ずつの2本の帯を上下に重ねた」フレームで、`tb` は上の帯を正面（u = 0.25〜0.75）、下の帯を背面に貼る。`bt` はその逆。
 - 車載音声は `<audio autoplay>` で再生。Enter VR のクリックでユーザー操作要件を満たす。
 - `input.js`：XR フレームループで `inputSources` の gamepad と grip 姿勢（`local-floor`）を読み、30 Hz に間引いて `env`（`in/quest`）を送る。XR セッション外では送らない（hub 側で入力途絶→停止になる）。
 - 両スティック押し込みで `in/estop`（source=quest）。押しっぱなしでも 1 秒に1回まで。

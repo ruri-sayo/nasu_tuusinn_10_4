@@ -49,6 +49,8 @@ async function main() {
     button: $('enter'),
     hint: $('hint'),
     onFrame: createInput(sig),
+    // ?layout=tb / ?layout=bt for the X4 two-strip frame (see xr-view.js).
+    layout: (new URLSearchParams(location.search).get('layout') || 'equirect').toLowerCase(),
   });
   // The Enter VR click is the user gesture that unlocks audio playback.
   $('enter').addEventListener('click', () => {
