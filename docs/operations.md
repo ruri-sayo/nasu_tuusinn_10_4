@@ -8,6 +8,65 @@
 
 ---
 
+## 0. 2026-10-04 の構成（暫定：中間サーバの代わりにラップトップ）
+
+10-04 だけは、中間サーバと Quest を使わず、次の構成にする。2026-10-04 未明に、コントローラー以外の全機能をこの構成で確認した。1章以降の手順とは、hub の置き場所が違う。
+
+| マシン | 動かすもの |
+|---|---|
+| 車載PC（nasc） | hub（`https://nasc.tailffb95c.ts.net`）、car_ctrl と car ページ（X4）、アームの Follower 2台 |
+| ラップトップ（laptop-dynabook） | booth ページ（パイロットのカメラ・マイク、E-STOP の解除）、pilot ページ（360°映像、コントローラー操縦）、アームの Leader 2台 |
+
+### 0.1 起動（この順に行う）
+
+1. 車載PC：hub を起動する（`tailscale serve` は 5324 番で設定済み）。
+
+   ```bash
+   cd ~/nasu_tuusinn_10_4 && PORT=5324 scripts/run_hub.sh
+   ```
+
+2. 車載PC：X4 を Webcam Mode で接続し、映像と car_ctrl を起動する。
+
+   ```bash
+   cd ~/nasu_tuusinn_10_4 && HUB_HOST=nasc.tailffb95c.ts.net scripts/run_car.sh
+   ```
+
+3. ラップトップ：コントローラーと Leader 2台を接続し、Leader を Follower と近い姿勢にしてから、PowerShell で起動する。booth と pilot のウィンドウが開き、Leader の送信が左右それぞれのウィンドウで始まる。
+
+   ```powershell
+   cd $env:USERPROFILE\Downloads\nasu_tuusinn_10_4; powershell -ExecutionPolicy Bypass -File scripts\start_pilot_station.ps1
+   ```
+
+   - booth：カメラとマイクを許可する。
+   - pilot：マイクを許可し、「クリックして開始」を押してから、コントローラーのボタンを1回押す。上部の「コントローラー」に機種名が緑で出れば認識している。操縦中は pilot のウィンドウを選択（フォーカス）しておく。
+   - 360°映像の前後が逆なら、pilot の URL の `?layout=tb` を `bt` にする。
+
+4. 車載PC：介添人の配置・可動域・無負荷を確認してから、アームの Follower を起動する（3.4.0.1）。
+
+   ```bash
+   cd ~/nasu_tuusinn_10_4 && LEADER_HOST=laptop-dynabook scripts/run_car_so101_remote.sh --confirm-safe-workspace
+   ```
+
+### 0.2 確認
+
+- `https://nasc.tailffb95c.ts.net/status` で、roles がすべて `true`、S1・S2・S3 が `connected`、`car_state` が `RUN`。
+- S1 の解像度は、接続直後は低く、数十秒で上がる。
+- アーム：車載PCの `logs/so101-follower-*.log` に `stream fresh: following leader`。
+
+### 0.3 操作と停止
+
+- 操縦は 4.1.1（pilot ページ）、E-STOP の解除は 4.2（booth ページ）。
+- アームの Follower を止める（車載PCで Ctrl+C）と脱力する。腕を支えてから止める。
+- 終了は、アームの Follower → Leader（各ウィンドウを閉じる）→ run_car.sh → hub の順に止め、booth と pilot のウィンドウを閉じる（booth はカメラを開いたままになるため）。
+
+### 0.4 この構成での注意
+
+- pilot ページは quest role として接続するので、Quest は使えない（つなぐと pilot が置き換えられる）。
+- ラップトップで hub を起動しない。hub が2つあると、両側が別の hub につながり、映像がつながらない（2026-10-04 に発生）。
+- コントローラーでの操縦は、偽のコントローラーでしか確認していない（実機のコントローラーは 10-04 当日に初めて接続する）。
+
+---
+
 ## 1. マシンごとの役割
 
 | マシン | 置き場所 | 動かすもの | 開くページ | OS | 必要なもの |
