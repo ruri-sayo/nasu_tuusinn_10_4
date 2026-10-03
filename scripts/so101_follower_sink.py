@@ -86,6 +86,17 @@ def main() -> None:
     was_fresh = False
     rejected = applied = 0
     last_report = time.monotonic()
+    reported: set[tuple[str, str]] = set()
+
+    def reject(src: str, reason: str) -> None:
+        # Log each (source, reason) once so a silent mismatch is visible.
+        nonlocal rejected
+        rejected += 1
+        if (src, reason) not in reported:
+            reported.add((src, reason))
+            log.warning("rejecting frames from %s: %s", src, reason)
+
+    log.info("waiting for leader frames (follower holds its position until then)")
     try:
         while not stop["reason"]:
             deadline = time.perf_counter() + period
@@ -100,9 +111,16 @@ def main() -> None:
                     data, (src, _) = sock.recvfrom(65535)
                 except BlockingIOError:
                     continue
-                frame = arm_stream.decode_frame(data) if src == allowed_ip else None
-                if frame is None or not gate.offer(frame, int(time.monotonic() * 1000)):
-                    rejected += 1
+                if src != allowed_ip:
+                    reject(src, f"source is not --allow-from ({allowed_ip})")
+                    continue
+                frame = arm_stream.decode_frame(data)
+                if frame is None:
+                    reject(src, "invalid frame")
+                elif frame.side != args.side:
+                    reject(src, f"frame for side {frame.side!r} on the {args.side} port")
+                elif not gate.offer(frame, int(time.monotonic() * 1000)):
+                    rejected += 1  # duplicate or out of order: normal on UDP
             now = int(time.monotonic() * 1000)
             fresh = gate.fresh(now)
             if fresh != was_fresh:
