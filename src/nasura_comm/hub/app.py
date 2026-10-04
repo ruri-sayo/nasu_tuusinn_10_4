@@ -66,8 +66,11 @@ REPLACED_CLOSE_CODE = 4001
 STATS_STALE_MS = 5000
 INPUT_TOPICS = {
     "quest": {"in/quest", "in/estop", "in/estop_release"},
-    "booth": {"in/estop", "in/estop_release"},
+    "booth": {"in/estop", "in/estop_release", "in/camera"},
 }
+CAMERAS = ("main", "sub")
+"""S1 camera sources selectable from the booth (provisional, 2026-10-04)."""
+CAMERA_ROLES = ("quest", "booth", "car_media")
 
 
 class Hub:
@@ -96,6 +99,8 @@ class Hub:
         self.events = events
         self._task: asyncio.Task[None] | None = None
         self._last_log = 0
+        self.camera = "main"
+        self._camera_seq = 0
 
     # ---- lifecycle -------------------------------------------------------
 
@@ -142,6 +147,9 @@ class Hub:
             self.dropped[env["topic"]] += 1
             return
         env["src"] = role  # never trust the client-declared source
+        if env["topic"] == "in/camera":
+            self._select_camera(env["payload"].get("source"))
+            return
         for out in self.core.on_input(env, mono_ms(), wall_ms()):
             self._event(out["topic"], **out["payload"])
             self.channels.send(out)
@@ -173,6 +181,31 @@ class Hub:
             return
         self.telemetry[topic] = env["payload"]
         self._broadcast(env)
+
+    def _camera_msg(self) -> dict[str, Any]:
+        self._camera_seq += 1
+        env = {
+            "topic": "sys/camera",
+            "ver": 1,
+            "seq": self._camera_seq,
+            "ts": wall_ms(),
+            "src": "hub",
+            "payload": {"source": self.camera},
+        }
+        return {"type": "env", "env": env}
+
+    def _select_camera(self, source: object) -> None:
+        """Switch the S1 camera (booth ``in/camera``) and tell every page."""
+        if source not in CAMERAS:
+            self.dropped["in/camera"] += 1
+            return
+        self.camera = str(source)
+        self._event("camera", source=self.camera)
+        msg = self._camera_msg()
+        for role in CAMERA_ROLES:
+            ws = self.router.handles.get(role)
+            if isinstance(ws, web.WebSocketResponse) and not ws.closed:
+                asyncio.ensure_future(_send_json(ws, msg))
 
     def _broadcast(self, env: Envelope) -> None:
         msg = {"type": "env", "env": env}
@@ -284,6 +317,8 @@ class Hub:
                         },
                     )
                     await self._run(self.router.on_hello(role, ws))
+                    if role in CAMERA_ROLES:
+                        await _send_json(ws, self._camera_msg())
                 elif role is None:
                     continue
                 elif kind == "signal":

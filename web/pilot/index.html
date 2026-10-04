@@ -17,12 +17,15 @@
   #focus { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); background: #a60; color: #fff; padding: 6px 14px; border-radius: 8px; }
   .bad { color: #f66; } .ok { color: #3c3; }
   video, audio { display: none; }
+  #hud, #help, #focus, #start { z-index: 2; }
+  body.flat #view { display: none; }
+  body.flat #video { display: block; position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 </style>
 </head>
 <body>
 <canvas id="view"></canvas>
 <div id="hud">
-  <div class="box">WS: <span id="ws">-</span> ／ S1: <span id="s1">-</span> ／ 車載: <span id="car">-</span> ／ コントローラー: <span id="pad">-</span>
+  <div class="box">WS: <span id="ws">-</span> ／ S1: <span id="s1">-</span> ／ 車載: <span id="car">-</span> ／ コントローラー: <span id="pad">-</span> ／ カメラ: <span id="camera">-</span>
     <div class="bad" id="error"></div></div>
   <button id="estop">E-STOP</button>
 </div>

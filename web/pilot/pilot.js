@@ -62,6 +62,12 @@ async function main() {
   sig.on('replaced', () => { document.title = 'replaced'; document.body.insertAdjacentHTML('afterbegin', '<div style="position:fixed;top:0;left:0;right:0;z-index:9;background:#a00;color:#fff;font:20px system-ui;padding:8px">別の画面（Quest または別の pilot）に置き換えられました（この画面は無効）</div>'); });
   sig.on('close', () => { $('ws').textContent = '切断'; $('ws').className = 'bad'; });
   sig.on('env', (msg) => {
+    if (msg.env?.topic === 'sys/camera') {
+      // Sub camera is a normal (flat) camera: show the video as is.
+      const flat = msg.env.payload?.source === 'sub';
+      document.body.classList.toggle('flat', flat);
+      $('camera').textContent = flat ? 'サブ' : 'メイン 360°';
+    }
     if (msg.env?.topic === 'sys/state') {
       const st = msg.env.payload.state;
       $('car').textContent = st;

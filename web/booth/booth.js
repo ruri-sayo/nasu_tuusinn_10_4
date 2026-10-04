@@ -103,8 +103,17 @@ async function main() {
   });
   sig.on('env', (msg) => {
     const env = msg.env;
+    if (env?.topic === 'sys/camera') {
+      const src = env.payload?.source;
+      $('camNow').textContent = src === 'sub' ? 'サブ' : 'メイン（360°）';
+      $('camMain').disabled = src === 'main';
+      $('camSub').disabled = src === 'sub';
+    }
     if (env && env.topic && !env.topic.startsWith('sys/')) telemetry[env.topic] = env.payload;
   });
+  // Provisional (2026-10-04): switch the S1 camera on the car.
+  $('camMain').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'main' }));
+  $('camSub').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'sub' }));
 
   $('estop').addEventListener('click', estop);
   $('release').addEventListener('click', release);
