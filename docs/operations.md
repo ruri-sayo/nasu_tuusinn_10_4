@@ -22,7 +22,7 @@
 1. 車載PC：hub を起動する（`tailscale serve` は 5324 番で設定済み）。
 
    ```bash
-   cd ~/nasu_tuusinn_10_4 && PORT=5324 scripts/run_hub.sh
+   cd ~/nasu_tuusinn_10_4 && PORT=5324 scripts/run_hub.sh --s1-width 2880 --s1-height 1440 --s1-max-bitrate 12000000
    ```
 
 2. 車載PC：X4 を Webcam Mode で接続し、映像と car_ctrl を起動する。
@@ -39,7 +39,7 @@
 
    - booth：カメラとマイクを許可する。
    - pilot：マイクを許可し、「クリックして開始」を押してから、コントローラーのボタンを1回押す。上部の「コントローラー」に機種名が緑で出れば認識している。操縦中は pilot のウィンドウを選択（フォーカス）しておく。
-   - 360°映像の前後が逆なら、pilot の URL の `?layout=tb` を `bt` にする。
+   - X4 は 2880×1440 で使う（正距円筒）。1920×1080 は前後2画面の「デュアル表示」で 360° ではなく、上下・前後が入れ替わって見える（2026-10-04 に発生）。pilot・quest の URL に `?layout=` は付けない。
 
 4. 車載PC：介添人の配置・可動域・無負荷を確認してから、アームの Follower を起動する（3.4.0.1）。
 

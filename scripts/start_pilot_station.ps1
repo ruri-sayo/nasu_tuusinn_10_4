@@ -4,14 +4,14 @@
 # and, unless -NoArm, streams both SO-101 leaders to the car PC.
 #
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\start_pilot_station.ps1
-#   -Layout tb|bt|equirect   360° frame layout for the pilot page (default tb, X4 webcam mode)
+#   -Layout equirect|tb|bt   360° frame layout for the pilot page (default equirect: X4 at 2880x1440)
 #   -NoArm                   do not start the leader streams
 # Side Effects: opens two Chrome windows (camera, microphone); starts the leader
 # processes (serial ports, UDP to the car PC).
 param(
   [string]$Hub = 'nasc.tailffb95c.ts.net',
   [string]$FollowerHost = 'nasc',
-  [ValidateSet('tb', 'bt', 'equirect')][string]$Layout = 'tb',
+  [ValidateSet('tb', 'bt', 'equirect')][string]$Layout = 'equirect',
   [switch]$NoArm
 )
 $ErrorActionPreference = 'Stop'
