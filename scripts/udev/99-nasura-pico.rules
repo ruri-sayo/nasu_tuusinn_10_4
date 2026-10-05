@@ -1,0 +1,4 @@
+# Stable name for the motor Pico (micro-ROS) on the car PC: /dev/nasura_pico.
+# Install: sudo cp scripts/udev/99-nasura-pico.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+# A different Pico board needs its ID_SERIAL_SHORT here (udevadm info -q property -n /dev/ttyACMx).
+SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="2e8a", ENV{ID_SERIAL_SHORT}=="E66428C51F55BC26", SYMLINK+="nasura_pico"

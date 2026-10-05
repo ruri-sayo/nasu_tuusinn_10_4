@@ -2,7 +2,13 @@
 # Start the car media/control stack and the ROS 2 drive path (DD-0021).
 #
 # Usage: HUB_HOST=<hub>.<tailnet>.ts.net scripts/run_car_ros2.sh
-# Side Effects: starts Chromium, network/UDP clients and ROS 2 motor-control processes.
+#   PICO_DEV  serial device of the motor Pico (default: /dev/nasura_pico from
+#             scripts/udev/99-nasura-pico.rules, else the only
+#             /dev/serial/by-id/*Raspberry_Pi_Pico*). Never guesses /dev/ttyACM*,
+#             which can be an SO-101 arm board.
+#   NO_AGENT=1  do not start the micro-ROS agent (it is already running).
+# Side Effects: starts Chromium, network/UDP clients, the micro-ROS agent (serial
+# to the Pico) and ROS 2 motor-control processes.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -29,13 +35,36 @@ if ! ros2 pkg executables joy_motor_controller | grep -qx 'joy_motor_controller 
   exit 1
 fi
 
+if [[ "${NO_AGENT:-0}" != "1" ]]; then
+  if [[ -z "${PICO_DEV:-}" ]]; then
+    if [[ -e /dev/nasura_pico ]]; then
+      PICO_DEV=/dev/nasura_pico
+    else
+      shopt -s nullglob
+      picos=(/dev/serial/by-id/*Raspberry_Pi_Pico*)
+      shopt -u nullglob
+      if (( ${#picos[@]} != 1 )); then
+        echo "motor Pico not found uniquely (${#picos[@]} candidates); connect it or set PICO_DEV" >&2
+        exit 1
+      fi
+      PICO_DEV="${picos[0]}"
+    fi
+  fi
+  if [[ ! -e "${PICO_DEV}" ]]; then
+    echo "PICO_DEV ${PICO_DEV} does not exist" >&2
+    exit 1
+  fi
+  echo "micro-ROS agent on ${PICO_DEV} -> $(readlink -f "${PICO_DEV}")"
+fi
+
+AGENT_PID=""
 CONTROLLER_PID=""
 ADAPTER_PID=""
 CAR_PID=""
 
 cleanup() {
   trap - EXIT INT TERM
-  for child_pid in "${ADAPTER_PID}" "${CONTROLLER_PID}" "${CAR_PID}"; do
+  for child_pid in "${ADAPTER_PID}" "${CONTROLLER_PID}" "${AGENT_PID}" "${CAR_PID}"; do
     if [[ -n "${child_pid}" ]]; then
       kill "${child_pid}" 2>/dev/null || true
     fi
@@ -43,6 +72,13 @@ cleanup() {
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+pids=()
+if [[ "${NO_AGENT:-0}" != "1" ]]; then
+  ros2 run micro_ros_agent micro_ros_agent serial --dev "${PICO_DEV}" &
+  AGENT_PID=$!
+  pids+=("${AGENT_PID}")
+fi
 
 ros2 run joy_motor_controller joy_motor_controller \
   --ros-args -r joy:=/nasura/drive_joy &
@@ -55,4 +91,4 @@ ADAPTER_PID=$!
 "${REPO_ROOT}/scripts/run_car.sh" &
 CAR_PID=$!
 
-wait -n "${CONTROLLER_PID}" "${ADAPTER_PID}" "${CAR_PID}"
+wait -n "${pids[@]}" "${CONTROLLER_PID}" "${ADAPTER_PID}" "${CAR_PID}"
