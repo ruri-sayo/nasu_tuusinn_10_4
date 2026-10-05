@@ -46,7 +46,7 @@ from e2elib import (
 
 RECOVERY_S = 15.0  # ST-0011
 S2_MAX_KBPS = 400.0  # REQ-0009 / ST-0004
-UP_BUDGET_KBPS = 3000.0  # REQ-0007
+UP_BUDGET_KBPS = 4000.0  # REQ-0007
 DOWNSTREAM_GAP_S = 0.2  # DD-0007 I/F contract
 PAGES = ("car", "booth", "quest")
 

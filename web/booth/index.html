@@ -16,9 +16,9 @@
   #release { width: 100%; margin-top: 8px; padding: 12px; font-size: 18px; background: #333; color: #eee;
              border: 1px solid #666; border-radius: 10px; cursor: pointer; }
   #release.armed { background: #a60; }
-  #camSel { margin-top: 12px; font-size: 18px; }
-  #camSel button { margin: 6px 4px 0 0; padding: 10px 16px; font-size: 18px; background: #246; color: #eee; border: 0; border-radius: 8px; }
-  #camSel button:disabled { background: #2a6; color: #fff; }
+  #camSel, .sel { margin-top: 12px; font-size: 18px; }
+  #camSel button, .sel button { margin: 6px 4px 0 0; padding: 10px 16px; font-size: 18px; background: #246; color: #eee; border: 0; border-radius: 8px; }
+  #camSel button:disabled, .sel button:disabled { background: #2a6; color: #fff; }
   #releaseHint { color: #aaa; font-size: 13px; min-height: 1.4em; }
   table { border-collapse: collapse; width: 100%; }
   td, th { padding: 4px 8px; border-bottom: 1px solid #333; text-align: left; font-variant-numeric: tabular-nums; }
@@ -43,7 +43,11 @@
     <div id="releaseHint"></div>
     <div id="camSel">S1 カメラ: <b id="camNow">-</b>
       <button id="camMain">メイン（360°）</button>
-      <button id="camSub">サブ（フル画質）</button>
+      <button id="camSub">サブ</button>
+    </div>
+    <div id="presetSel" class="sel">S1 送信: <b id="presetNow">-</b>
+      <button id="presetLimited">制限</button>
+      <button id="presetFull">フルスペック</button>
     </div>
   </section>
   <section>

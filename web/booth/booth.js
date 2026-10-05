@@ -2,7 +2,8 @@
 //
 // Responsibilities: S2 offerer; E-STOP button and Escape key -> in/estop;
 // release by two presses within 2 s -> in/estop_release; poll /status at
-// 1 Hz and render it; show telemetry pushed by the hub.
+// 1 Hz and render it; show telemetry pushed by the hub; select the S1 camera
+// and send preset (in/camera).
 // Non-responsibilities: browser dialogs (alert/confirm/prompt are not used).
 // Side Effects: captures camera/microphone, opens WebRTC and WebSocket,
 // polls /status.
@@ -108,12 +109,21 @@ async function main() {
       $('camNow').textContent = src === 'sub' ? 'サブ' : 'メイン（360°）';
       $('camMain').disabled = src === 'main';
       $('camSub').disabled = src === 'sub';
+      const preset = env.payload?.preset;
+      const p = cfg.S1_presets[preset];
+      $('presetNow').textContent = p
+        ? `${preset === 'full' ? 'フルスペック' : '制限'}（上限 ${(p.max_bitrate / 1e6).toFixed(1)} Mbps、解像度 ÷${p.scale}）`
+        : '-';
+      $('presetLimited').disabled = preset === 'limited';
+      $('presetFull').disabled = preset === 'full';
     }
     if (env && env.topic && !env.topic.startsWith('sys/')) telemetry[env.topic] = env.payload;
   });
   // Provisional (2026-10-04): switch the S1 camera on the car.
   $('camMain').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'main' }));
   $('camSub').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'sub' }));
+  $('presetLimited').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'limited' }));
+  $('presetFull').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'full' }));
 
   $('estop').addEventListener('click', estop);
   $('release').addEventListener('click', release);

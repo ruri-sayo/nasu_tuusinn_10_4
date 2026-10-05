@@ -1,7 +1,8 @@
 """Hub configuration and JSON views (DD-0009).
 
 Responsibilities:
-    - Hold defaults for media (S1/S2) and the hub server, overridable by CLI.
+    - Hold defaults for media (S1/S2, S1 presets, sub camera) and the hub
+      server, overridable by CLI.
     - Build ``/config.json`` and ``/status`` payloads as pure functions.
 
 Non-responsibilities:
@@ -18,6 +19,10 @@ from typing import Any
 
 ROLES = ("quest", "booth", "car_media", "car_ctrl")
 SESSIONS = ("S1", "S2", "S3")
+S1_PRESETS = ("full", "limited")
+"""S1 send presets selectable from the booth: ``full`` sends the captured
+resolution at ``--s1-full-max-bitrate``; ``limited`` (default) scales down by
+``--s1-limited-scale`` and caps at ``--s1-max-bitrate`` (venue uplink)."""
 
 DEFAULT_WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 
@@ -41,6 +46,17 @@ class MediaConfig:
 
 
 @dataclass
+class SubCameraConfig:
+    """Sub (flat) camera selectable on S1; ``label`` is a substring of the device label."""
+
+    label: str = "USB_Camera"
+    width: int = 1920
+    height: int = 1080
+    fps: int = 30
+    max_bitrate: int = 8_000_000
+
+
+@dataclass
 class HubConfig:
     """All hub settings."""
 
@@ -52,11 +68,15 @@ class HubConfig:
     extra_topics: list[str] = field(default_factory=list)
     s1: MediaConfig = field(
         default_factory=lambda: MediaConfig(
-            1920, 960, 30, 2_500_000, "motion", device_label="Insta360"
+            2880, 1440, 30, 3_600_000, "motion", device_label="Insta360"
         )
     )
+    s1_full_max_bitrate: int = 12_000_000
+    s1_limited_scale: float = 1.5
+    s1_preset: str = "limited"
+    sub: SubCameraConfig = field(default_factory=SubCameraConfig)
     s2: MediaConfig = field(default_factory=lambda: MediaConfig(640, 480, 15, 400_000, "detail"))
-    up_budget_bps: int = 3_000_000
+    up_budget_bps: int = 4_000_000
     yaw_offset_deg: float = 0.0
     """Robot front in the 360° image, degrees right of the image center
     (Insta360 mounting offset); viewers turn the sphere to put it ahead."""
@@ -80,10 +100,34 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     ap.add_argument("--s1-width", type=int, default=d.s1.width)
     ap.add_argument("--s1-height", type=int, default=d.s1.height)
     ap.add_argument("--s1-fps", type=int, default=d.s1.fps)
-    ap.add_argument("--s1-max-bitrate", type=int, default=d.s1.max_bitrate)
+    ap.add_argument(
+        "--s1-max-bitrate", type=int, default=d.s1.max_bitrate, help="limited preset (bps)"
+    )
+    ap.add_argument(
+        "--s1-full-max-bitrate", type=int, default=d.s1_full_max_bitrate, help="full preset (bps)"
+    )
+    ap.add_argument(
+        "--s1-limited-scale",
+        type=float,
+        default=d.s1_limited_scale,
+        help="limited preset: divide the captured resolution by this",
+    )
+    ap.add_argument("--s1-preset", default=d.s1_preset, choices=list(S1_PRESETS))
     ap.add_argument("--s1-codec", default=d.s1.codec, choices=["auto", "H264", "VP8"])
     ap.add_argument("--s1-device-label", default=d.s1.device_label)
+    ap.add_argument("--sub-label", default=d.sub.label)
+    ap.add_argument("--sub-width", type=int, default=d.sub.width)
+    ap.add_argument("--sub-height", type=int, default=d.sub.height)
+    ap.add_argument("--sub-fps", type=int, default=d.sub.fps)
+    ap.add_argument(
+        "--sub-max-bitrate", type=int, default=d.sub.max_bitrate, help="full preset (bps)"
+    )
+    ap.add_argument("--s2-width", type=int, default=d.s2.width)
+    ap.add_argument("--s2-height", type=int, default=d.s2.height)
+    ap.add_argument("--s2-fps", type=int, default=d.s2.fps)
     ap.add_argument("--s2-max-bitrate", type=int, default=d.s2.max_bitrate)
+    ap.add_argument("--audio-max-bitrate", type=int, default=d.s1.audio_max_bitrate)
+    ap.add_argument("--up-budget-bps", type=int, default=d.up_budget_bps)
     ap.add_argument(
         "--yaw-offset-deg",
         type=float,
@@ -99,7 +143,13 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
         a.s1_codec,
         a.s1_device_label,
     )
+    d.s1_full_max_bitrate, d.s1_limited_scale = a.s1_full_max_bitrate, a.s1_limited_scale
+    d.s1_preset = a.s1_preset
+    d.sub = SubCameraConfig(a.sub_label, a.sub_width, a.sub_height, a.sub_fps, a.sub_max_bitrate)
+    d.s2.width, d.s2.height, d.s2.fps = a.s2_width, a.s2_height, a.s2_fps
     d.s2.max_bitrate = a.s2_max_bitrate
+    d.s1.audio_max_bitrate = d.s2.audio_max_bitrate = a.audio_max_bitrate
+    d.up_budget_bps = a.up_budget_bps
     d.yaw_offset_deg = a.yaw_offset_deg
     return d
 
@@ -108,6 +158,12 @@ def build_config_json(cfg: HubConfig) -> dict[str, Any]:
     """Build the ``/config.json`` payload."""
     return {
         "S1": asdict(cfg.s1),
+        "S1_presets": {
+            "full": {"max_bitrate": cfg.s1_full_max_bitrate, "scale": 1.0},
+            "limited": {"max_bitrate": cfg.s1.max_bitrate, "scale": cfg.s1_limited_scale},
+        },
+        "S1_preset": cfg.s1_preset,
+        "sub": asdict(cfg.sub),
         "S2": asdict(cfg.s2),
         "up_budget_bps": cfg.up_budget_bps,
         "view": {"yaw_offset_deg": cfg.yaw_offset_deg},

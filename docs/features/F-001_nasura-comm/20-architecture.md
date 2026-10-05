@@ -65,7 +65,9 @@ verify: review
 
 - 圧縮・レート適応はブラウザ（WebRTC）の責任とし、アプリは生のカメラ映像と上限値を渡すだけにする。
 - 上限は `RTCRtpSender.setParameters`（maxBitrate / maxFramerate）で与え、優先方針は `MediaStreamTrack.contentHint` で与える。
-  - S1：`motion`（フレームレート維持）、上限 2.5 Mbps
+  - S1：`motion`（フレームレート維持）。X4 を 2880×1440 で取り込み、送信設定を2つ持つ。booth から切り替える（再接続なし、`maxBitrate` と `scaleResolutionDownBy` を変える）。
+    - 制限（既定）：解像度 ÷1.5（1920×960）、上限 3.6 Mbps
+    - フルスペック：解像度そのまま、上限 12 Mbps（会場の上りに余裕があるときだけ使う）
   - S2：`detail`（解像度維持）、640×480・15 fps・上限 400 kbps
 - 音声は Opus、上限 32 kbps。エコーキャンセルはブラウザ標準を有効にする。
 - メディアは中間サーバで中継・再エンコードしない（SFU不要）。Quest も tailnet に参加しているので、S1 は車載PC と Quest の間を tailnet で直接流れる。
@@ -74,11 +76,13 @@ verify: review
 
 | 項目 | 上限 |
 |---|---|
-| S1 映像 | 2,500 kbps |
+| S1 映像（制限） | 3,600 kbps |
 | S1 音声 | 32 kbps |
 | S3 上り（ack・state・テレメトリ） | 100 kbps |
-| 余裕（RTP/ICE オーバーヘッド） | 約 370 kbps |
-| **合計** | **3,000 kbps 以内** |
+| 余裕（RTP/ICE オーバーヘッド） | 約 270 kbps |
+| **合計** | **4,000 kbps 以内** |
+
+フルスペックに切り替えている間は、この予算を超える（REQ-0007 の対象外）。
 
 ### AD-0004: シグナリングは hub の WebSocket に集約する
 

@@ -21,12 +21,12 @@ def test_config_defaults():
     assert MEDIA_KEYS <= set(cfg["S1"])
     assert MEDIA_KEYS <= set(cfg["S2"])
     s1, s2 = cfg["S1"], cfg["S2"]
-    assert (s1["width"], s1["height"], s1["fps"], s1["max_bitrate"]) == (1920, 960, 30, 2_500_000)
+    assert (s1["width"], s1["height"], s1["fps"], s1["max_bitrate"]) == (2880, 1440, 30, 3_600_000)
     assert (s1["content_hint"], s1["codec"], s1["audio_max_bitrate"]) == ("motion", "auto", 32_000)
     assert s1["device_label"] == "Insta360"
     assert (s2["width"], s2["height"], s2["fps"], s2["max_bitrate"]) == (640, 480, 15, 400_000)
     assert (s2["content_hint"], s2["codec"], s2["audio_max_bitrate"]) == ("detail", "auto", 32_000)
-    assert cfg["up_budget_bps"] == 3_000_000
+    assert cfg["up_budget_bps"] == 4_000_000
 
 
 @pytest.mark.verifies("DD-0009", spec="UT-0013")

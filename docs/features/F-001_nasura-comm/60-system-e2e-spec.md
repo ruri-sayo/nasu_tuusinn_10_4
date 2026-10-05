@@ -94,7 +94,7 @@ executed_at:
 
 結果：
 
-### ST-0007: 上り帯域が 3.0 Mbps 以内
+### ST-0007: 上り帯域が 4.0 Mbps 以内（送信設定：制限）
 
 covers: REQ-0007
 method: manual
@@ -103,8 +103,8 @@ commit:
 executed_by:
 executed_at:
 
-手順：全系統を 5 分間動かし、booth の表示と車載PCの `nload`（または `ifstat`）で tailscale0 の送信量を記録する。
-合格：5 分間の平均が 3.0 Mbps 以下、10 秒平均の最大が 3.5 Mbps 以下。
+手順：booth の「S1 送信」を「制限」にして全系統を 5 分間動かし、booth の表示と車載PCの `nload`（または `ifstat`）で tailscale0 の送信量を記録する。
+合格：5 分間の平均が 4.0 Mbps 以下、10 秒平均の最大が 4.5 Mbps 以下。
 
 結果：
 

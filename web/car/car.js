@@ -2,7 +2,9 @@
 // video/audio received on S2 full screen.
 //
 // Responsibilities: pick the camera by label, open media with S1 limits,
-// run S1 (offerer) and S2 (answerer), show a small status HUD ('h' toggles).
+// run S1 (offerer) and S2 (answerer), apply the booth-selected S1 camera and
+// send preset (maxBitrate / scaleResolutionDownBy, no renegotiation), show a
+// small status HUD ('h' toggles).
 // Non-responsibilities: re-encoding or cropping video (browser encoder only).
 // Side Effects: captures camera/microphone, opens WebRTC and WebSocket.
 
@@ -15,14 +17,9 @@ const showError = (text) => { $('error').textContent = text; };
 
 function setDot(id, state) { $(id).style.background = stateColor(state); }
 
-// Provisional (2026-10-04): booth can switch S1 to a sub camera sent at full
-// quality. Label substring can be overridden with ?sub=<label>.
-const SUB = {
-  label: (new URLSearchParams(location.search).get('sub') || 'USB_Camera').toLowerCase(),
-  width: 1920, height: 1080, fps: 30, maxBitrate: 8_000_000,
-};
-
-async function openSubCamera(mainLabel) {
+// Provisional (2026-10-04): booth can switch S1 to a sub camera. Settings come
+// from the hub (--sub-*); the label substring can be overridden with ?sub=<label>.
+async function openSubCamera(SUB, mainLabel) {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const cams = devices.filter((d) => d.kind === 'videoinput');
   const main = (mainLabel || '').toLowerCase();
@@ -82,7 +79,12 @@ async function main() {
 
   const mainTrack = stream?.getVideoTracks()[0] || null;
   const mainInfo = $('camInfo').textContent;
+  const SUB = {
+    ...cfg.sub,
+    label: (new URLSearchParams(location.search).get('sub') || cfg.sub.label).toLowerCase(),
+  };
   let camera = 'main';
+  let preset = cfg.S1_preset;
   let sub = null;
 
   // Put the selected camera on the S1 video sender with its own limits.
@@ -91,7 +93,7 @@ async function main() {
     if (!sender) return;
     if (camera === 'sub' && !sub) {
       try {
-        sub = await openSubCamera(cfg.S1.device_label);
+        sub = await openSubCamera(SUB, cfg.S1.device_label);
       } catch (err) {
         showError(String(err.message || err));
         return;
@@ -99,23 +101,28 @@ async function main() {
     }
     const track = camera === 'sub' ? sub.track : mainTrack;
     if (track && sender.track !== track) await sender.replaceTrack(track);
+    const p = cfg.S1_presets[preset] || cfg.S1_presets.limited;
     const params = sender.getParameters();
     if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
     if (camera === 'sub') {
-      params.encodings[0].maxBitrate = SUB.maxBitrate;
+      // The sub camera is already small; the preset only caps its bitrate.
+      params.encodings[0].maxBitrate = Math.min(SUB.max_bitrate, p.max_bitrate);
       params.encodings[0].maxFramerate = SUB.fps;
+      params.encodings[0].scaleResolutionDownBy = 1;
       params.degradationPreference = 'maintain-resolution';
     } else {
-      params.encodings[0].maxBitrate = cfg.S1.max_bitrate;
+      params.encodings[0].maxBitrate = p.max_bitrate;
       params.encodings[0].maxFramerate = cfg.S1.fps;
+      params.encodings[0].scaleResolutionDownBy = p.scale;
       params.degradationPreference = 'maintain-framerate';
     }
     try { await sender.setParameters(params); } catch (err) { console.warn('setParameters', err); }
+    const mbps = (params.encodings[0].maxBitrate / 1e6).toFixed(1);
     if (camera === 'sub') {
       const st = sub.track.getSettings();
-      $('camInfo').textContent = `camera: SUB ${sub.label} ${st.width}×${st.height} @${(st.frameRate || 0).toFixed(0)}fps`;
+      $('camInfo').textContent = `camera: SUB ${sub.label} ${st.width}×${st.height} @${(st.frameRate || 0).toFixed(0)}fps [${preset} ≤${mbps}Mbps]`;
     } else {
-      $('camInfo').textContent = mainInfo;
+      $('camInfo').textContent = `${mainInfo} [${preset} ÷${p.scale} ≤${mbps}Mbps]`;
     }
   }
 
@@ -124,6 +131,7 @@ async function main() {
     const src = msg.env.payload?.source;
     if (src !== 'main' && src !== 'sub') return;
     camera = src;
+    if (cfg.S1_presets[msg.env.payload?.preset]) preset = msg.env.payload.preset;
     applyCamera().catch((e) => showError(String(e)));
   });
 

@@ -39,6 +39,7 @@ from nasura_comm import topics
 from nasura_comm.clock import mono_ms, wall_ms
 from nasura_comm.config import (
     ROLES,
+    S1_PRESETS,
     HubConfig,
     StatusSnapshot,
     build_config_json,
@@ -69,7 +70,8 @@ INPUT_TOPICS = {
     "booth": {"in/estop", "in/estop_release", "in/camera"},
 }
 CAMERAS = ("main", "sub")
-"""S1 camera sources selectable from the booth (provisional, 2026-10-04)."""
+"""S1 camera sources selectable from the booth (provisional, 2026-10-04).
+The booth also selects the S1 send preset (``S1_PRESETS``) with the same topic."""
 CAMERA_ROLES = ("quest", "booth", "car_media")
 
 
@@ -100,6 +102,7 @@ class Hub:
         self._task: asyncio.Task[None] | None = None
         self._last_log = 0
         self.camera = "main"
+        self.preset = cfg.s1_preset
         self._camera_seq = 0
 
     # ---- lifecycle -------------------------------------------------------
@@ -148,7 +151,7 @@ class Hub:
             return
         env["src"] = role  # never trust the client-declared source
         if env["topic"] == "in/camera":
-            self._select_camera(env["payload"].get("source"))
+            self._select_camera(env["payload"])
             return
         for out in self.core.on_input(env, mono_ms(), wall_ms()):
             self._event(out["topic"], **out["payload"])
@@ -190,17 +193,28 @@ class Hub:
             "seq": self._camera_seq,
             "ts": wall_ms(),
             "src": "hub",
-            "payload": {"source": self.camera},
+            "payload": {"source": self.camera, "preset": self.preset},
         }
         return {"type": "env", "env": env}
 
-    def _select_camera(self, source: object) -> None:
-        """Switch the S1 camera (booth ``in/camera``) and tell every page."""
-        if source not in CAMERAS:
+    def _select_camera(self, payload: dict[str, Any]) -> None:
+        """Switch the S1 camera and/or preset (booth ``in/camera``) and tell every page.
+
+        ``payload`` holds ``source`` (``CAMERAS``), ``preset`` (``S1_PRESETS``)
+        or both; an unknown value drops the whole message.
+        """
+        source, preset = payload.get("source"), payload.get("preset")
+        if (source is None and preset is None) or (
+            (source is not None and source not in CAMERAS)
+            or (preset is not None and preset not in S1_PRESETS)
+        ):
             self.dropped["in/camera"] += 1
             return
-        self.camera = str(source)
-        self._event("camera", source=self.camera)
+        if source is not None:
+            self.camera = str(source)
+        if preset is not None:
+            self.preset = str(preset)
+        self._event("camera", source=self.camera, preset=self.preset)
         msg = self._camera_msg()
         for role in CAMERA_ROLES:
             ws = self.router.handles.get(role)
