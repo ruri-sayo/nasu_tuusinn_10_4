@@ -38,7 +38,9 @@ function rotY(a) {
 }
 
 // layout: 'equirect' (default), 'tb' or 'bt' (X4 two-strip frame, see xr-view.js).
-export function createPanoView({ canvas, video, layout = 'equirect' }) {
+// yawOffsetDeg: robot front in the image, degrees right of the image center;
+// the initial and reset view looks at it.
+export function createPanoView({ canvas, video, layout = 'equirect', yawOffsetDeg = 0 }) {
   const gl = canvas.getContext('webgl', { alpha: false, antialias: true });
   if (!gl) throw new Error('WebGL を初期化できません。');
 
@@ -114,7 +116,8 @@ export function createPanoView({ canvas, video, layout = 'equirect' }) {
   gl.disable(gl.CULL_FACE);
 
   // yaw > 0 looks left, pitch > 0 looks up (radians); fov is vertical (degrees).
-  const camera = { yaw: 0, pitch: 0, fov: 90 };
+  const frontYaw = -(Number(yawOffsetDeg) || 0) * DEG;
+  const camera = { yaw: frontYaw, pitch: 0, fov: 90 };
 
   function render() {
     const dpr = window.devicePixelRatio || 1;
@@ -137,6 +140,6 @@ export function createPanoView({ canvas, video, layout = 'equirect' }) {
   return {
     camera,
     render,
-    reset() { camera.yaw = 0; camera.pitch = 0; camera.fov = 90; },
+    reset() { camera.yaw = frontYaw; camera.pitch = 0; camera.fov = 90; },
   };
 }

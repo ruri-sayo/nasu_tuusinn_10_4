@@ -4,13 +4,16 @@
 // It uses raw WebGL, so no three.js / CDN is needed.
 //
 // Responsibilities: render a <video> as an inside-out sphere in immersive-vr,
-// following head pose; expose each XR frame to a callback (controller input).
+// following head pose; expose each XR frame to a callback (controller input);
+// turn the sphere about the vertical axis so the robot front is ahead
+// (fixed mounting offset + "recenter": the head yaw at that moment is front).
 // Non-responsibilities: stereo/parallax (mono 360° on both eyes), networking.
 
 // layout: 'equirect' (default, one 2:1 panorama), or the two-strip frame the X4
 // webcam mode sends (two 180° halves stacked top/bottom): 'tb' puts the top strip
 // in front, 'bt' the bottom strip.
-export function createXRView({ canvas, video, button, hint, onFrame, onSessionChange, layout = 'equirect' }) {
+// yawOffsetDeg: robot front in the image, degrees right of the image center.
+export function createXRView({ canvas, video, button, hint, onFrame, onSessionChange, layout = 'equirect', yawOffsetDeg = 0 }) {
   let session = null;
   let gl = null;
   let program = null;
@@ -20,6 +23,19 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
   let supported = false;
   let videoReady = false;
   let mvpLocation = null;
+  // Head yaw (rad, counter-clockwise seen from above) taken as the front by recenter().
+  let frontYaw = 0;
+  const yawOffset = (Number(yawOffsetDeg) || 0) * Math.PI / 180;
+
+  // Model matrix: rotate the sphere about +y by frontYaw + yawOffset (column-major).
+  const sphereRotation = () => {
+    const a = frontYaw + yawOffset;
+    const c = Math.cos(a); const s = Math.sin(a);
+    return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
+  };
+
+  // Yaw of the viewer's forward (-z) direction; pitch and roll are ignored.
+  const headYaw = (q) => Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 
   const multiply = (a, b) => {
     const out = new Float32Array(16);
@@ -151,10 +167,11 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    const model = sphereRotation();
     for (const view of pose.views) {
       const vp = layer.getViewport(view);
       gl.viewport(vp.x, vp.y, vp.width, vp.height);
-      gl.uniformMatrix4fv(mvpLocation, false, multiply(view.projectionMatrix, view.transform.inverse.matrix));
+      gl.uniformMatrix4fv(mvpLocation, false, multiply(multiply(view.projectionMatrix, view.transform.inverse.matrix), model));
       gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
     }
   }
@@ -168,6 +185,9 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
       // local-floor is the frame for controller poses (DD-0002); fall back to local.
       referenceSpace = await session.requestReferenceSpace('local-floor')
         .catch(() => session.requestReferenceSpace('local'));
+      // A system recenter (Meta button) makes the current head direction the
+      // new -z, which is what recenter() would compute, so drop our own value.
+      referenceSpace.addEventListener('reset', () => { frontYaw = 0; });
       session.addEventListener('end', () => {
         session = null;
         updateButton();
@@ -187,6 +207,13 @@ export function createXRView({ canvas, video, button, hint, onFrame, onSessionCh
   checkSupport();
   return {
     setVideoReady(ready) { videoReady = ready; updateButton(); },
+    // Take the current head yaw as the front. Call inside the XR frame loop.
+    recenter(frame) {
+      const pose = referenceSpace && frame.getViewerPose(referenceSpace);
+      if (!pose) return false;
+      frontYaw = headYaw(pose.transform.orientation);
+      return true;
+    },
     end() { session?.end().catch(() => {}); },
   };
 }

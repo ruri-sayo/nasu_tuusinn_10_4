@@ -76,7 +76,7 @@ async function main() {
   });
 
   const layout = (new URLSearchParams(location.search).get('layout') || 'equirect').toLowerCase();
-  const view = createPanoView({ canvas: $('view'), video, layout });
+  const view = createPanoView({ canvas: $('view'), video, layout, yawOffsetDeg: cfg.view?.yaw_offset_deg ?? 0 });
   setupMouse($('view'), view);
 
   let lastEstop = -Infinity;

@@ -2,7 +2,8 @@
 //
 // Responsibilities: read XR input sources (xr-standard gamepad + grip pose in
 // local-floor) inside the XR frame loop, send in/quest at 30 Hz, and send
-// in/estop when both thumbsticks are pressed (at most once per second).
+// in/estop when both thumbsticks are pressed (at most once per second);
+// call onRecenter when the left Y button goes down (view front correction).
 // Non-responsibilities: mapping to commands (done by the hub).
 // Side Effects: sends WebSocket messages.
 
@@ -39,9 +40,10 @@ function readHand(source, frame, space, side) {
   return hand;
 }
 
-export function createInput(sig, { onEstop } = {}) {
+export function createInput(sig, { onEstop, onRecenter } = {}) {
   let lastSent = 0;
   let lastEstop = -Infinity;
+  let lastY = false;
 
   return function onFrame(frame, space, time) {
     const hands = { left: emptyHand('left'), right: emptyHand('right') };
@@ -55,6 +57,8 @@ export function createInput(sig, { onEstop } = {}) {
       sig.sendEnv('in/estop', { reason: 'quest both thumbsticks' });
       if (onEstop) onEstop();
     }
+    if (hands.left.y && !lastY && onRecenter) onRecenter(frame);
+    lastY = hands.left.y;
     if (time - lastSent >= SEND_INTERVAL_MS) {
       lastSent = time;
       sig.sendEnv('in/quest', hands);

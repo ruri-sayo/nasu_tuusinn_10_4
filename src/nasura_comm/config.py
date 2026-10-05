@@ -57,6 +57,9 @@ class HubConfig:
     )
     s2: MediaConfig = field(default_factory=lambda: MediaConfig(640, 480, 15, 400_000, "detail"))
     up_budget_bps: int = 3_000_000
+    yaw_offset_deg: float = 0.0
+    """Robot front in the 360° image, degrees right of the image center
+    (Insta360 mounting offset); viewers turn the sphere to put it ahead."""
 
 
 def parse_args(argv: list[str] | None = None) -> HubConfig:
@@ -81,6 +84,12 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     ap.add_argument("--s1-codec", default=d.s1.codec, choices=["auto", "H264", "VP8"])
     ap.add_argument("--s1-device-label", default=d.s1.device_label)
     ap.add_argument("--s2-max-bitrate", type=int, default=d.s2.max_bitrate)
+    ap.add_argument(
+        "--yaw-offset-deg",
+        type=float,
+        default=d.yaw_offset_deg,
+        help="robot front in the 360° image, degrees right of the image center",
+    )
     a = ap.parse_args(argv)
     d.port, d.bind, d.tls_self_signed = a.port, a.bind, a.tls_self_signed
     d.web_dir, d.log_dir, d.extra_topics = a.web_dir, a.log_dir, a.extra_topic
@@ -91,12 +100,18 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
         a.s1_device_label,
     )
     d.s2.max_bitrate = a.s2_max_bitrate
+    d.yaw_offset_deg = a.yaw_offset_deg
     return d
 
 
 def build_config_json(cfg: HubConfig) -> dict[str, Any]:
     """Build the ``/config.json`` payload."""
-    return {"S1": asdict(cfg.s1), "S2": asdict(cfg.s2), "up_budget_bps": cfg.up_budget_bps}
+    return {
+        "S1": asdict(cfg.s1),
+        "S2": asdict(cfg.s2),
+        "up_budget_bps": cfg.up_budget_bps,
+        "view": {"yaw_offset_deg": cfg.yaw_offset_deg},
+    }
 
 
 @dataclass
