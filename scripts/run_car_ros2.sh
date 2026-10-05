@@ -73,9 +73,36 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# The Pico firmware tries to reach the agent only for a few seconds after it
+# boots and never retries, so a Pico that booted before the agent stays
+# unconnected (e.g. after a PC reboot). Replugging (or resetting) the Pico
+# fixes it; when the device node is recreated, restart the agent at once so
+# the fresh Pico finds it, and its old file descriptor is not left dangling.
+agent_loop() {
+  local inode now apid=""
+  trap '[[ -n "${apid}" ]] && { pkill -TERM -P "${apid}"; kill "${apid}"; } 2>/dev/null; exit 0' TERM
+  while true; do
+    while [[ ! -e "${PICO_DEV}" ]]; do sleep 0.1; done
+    inode="$(stat -Lc %i "${PICO_DEV}" 2>/dev/null || echo none)"
+    ros2 run micro_ros_agent micro_ros_agent serial --dev "${PICO_DEV}" &
+    apid=$!
+    while kill -0 "${apid}" 2>/dev/null; do
+      sleep 0.2
+      now="$(stat -Lc %i "${PICO_DEV}" 2>/dev/null || echo gone)"
+      if [[ "${now}" != "${inode}" ]]; then
+        echo "motor Pico re-enumerated; restarting the micro-ROS agent" >&2
+        break
+      fi
+    done
+    pkill -TERM -P "${apid}" 2>/dev/null || true
+    kill "${apid}" 2>/dev/null || true
+    wait "${apid}" 2>/dev/null || true
+  done
+}
+
 pids=()
 if [[ "${NO_AGENT:-0}" != "1" ]]; then
-  ros2 run micro_ros_agent micro_ros_agent serial --dev "${PICO_DEV}" &
+  agent_loop &
   AGENT_PID=$!
   pids+=("${AGENT_PID}")
 fi
