@@ -70,16 +70,17 @@ REPLACED_CLOSE_CODE = 4001
 STATS_STALE_MS = 5000
 INPUT_TOPICS = {
     "quest": {"in/quest", "in/estop", "in/estop_release"},
-    "booth": {"in/estop", "in/estop_release", "in/camera", "in/pilot", "in/quest"},
+    "booth": {"in/estop", "in/estop_release", "in/camera", "in/pilot", "in/quest", "in/admin"},
 }
-PILOT_MODES = ("quest", "booth")
-"""Who drives: ``quest`` (Quest or pilot page, default) or ``booth`` (the booth
-page views the 360° video and sends ``in/quest`` from a gamepad, no Quest).
-Only the selected role's ``in/quest`` is used; switching needs the admin
-password. The other role's input simply stops, so the input-loss timeout (L1)
-stops the drive until the new pilot sends input."""
-PILOT_RETRY_MS = 1000
-"""After a wrong password, further attempts are ignored for this long."""
+PILOT_MODES = {"quest": "quest", "gamepad": "booth"}
+"""Input source -> role whose ``in/quest`` is used. ``quest``: the Quest
+controllers (or the pilot page; default). ``gamepad``: a game controller on
+the booth PC, read by the booth page (which then also shows a pan/zoom 360°
+view, so the booth can drive without a Quest). The other role's input simply
+stops, so the input-loss timeout (L1) stops the drive until the new source
+sends input."""
+ADMIN_RETRY_MS = 1000
+"""After a wrong password, further logins are ignored for this long."""
 PILOT_ROLES = ("quest", "booth")
 CAMERAS = ("main", "sub")
 """S1 camera sources selectable from the booth (provisional, 2026-10-04).
@@ -116,10 +117,11 @@ class Hub:
         self._last_log = 0
         self.camera = "main"
         self.preset = cfg.s1_preset
-        self._camera_seq = 0
         self.pilot = "quest"
-        self._pilot_seq = 0
-        self._pilot_fail_at = -PILOT_RETRY_MS
+        self.admin = False
+        """True while the current booth connection is logged in (``in/admin``)."""
+        self._admin_fail_at = -ADMIN_RETRY_MS
+        self._sys_seq: Counter[str] = Counter()
 
     # ---- lifecycle -------------------------------------------------------
 
@@ -169,13 +171,20 @@ class Hub:
             self.dropped[env["topic"]] += 1
             return
         env["src"] = role  # never trust the client-declared source
-        if env["topic"] == "in/camera":
-            self._select_camera(env["payload"])
+        if env["topic"] == "in/admin":
+            self._login(env["payload"])
             return
-        if env["topic"] == "in/pilot":
-            self._select_pilot(env["payload"])
+        if env["topic"] in ("in/camera", "in/pilot"):
+            if not self.admin:
+                self.dropped[env["topic"]] += 1
+                self._send_roles(("booth",), self._admin_msg("login"))
+                return
+            if env["topic"] == "in/camera":
+                self._select_camera(env["payload"])
+            else:
+                self._select_pilot(env["payload"])
             return
-        if env["topic"] == "in/quest" and role != self.pilot:
+        if env["topic"] == "in/quest" and role != PILOT_MODES[self.pilot]:
             return  # not the current pilot (mode switch); not counted as a drop
         for out in self.core.on_input(env, mono_ms(), wall_ms()):
             self._event(out["topic"], **out["payload"])
@@ -209,17 +218,20 @@ class Hub:
         self.telemetry[topic] = env["payload"]
         self._broadcast(env)
 
-    def _camera_msg(self) -> dict[str, Any]:
-        self._camera_seq += 1
+    def _sys_msg(self, topic: str, payload: dict[str, Any]) -> dict[str, Any]:
+        self._sys_seq[topic] += 1
         env = {
-            "topic": "sys/camera",
+            "topic": topic,
             "ver": 1,
-            "seq": self._camera_seq,
+            "seq": self._sys_seq[topic],
             "ts": wall_ms(),
             "src": "hub",
-            "payload": {"source": self.camera, "preset": self.preset},
+            "payload": payload,
         }
         return {"type": "env", "env": env}
+
+    def _camera_msg(self) -> dict[str, Any]:
+        return self._sys_msg("sys/camera", {"source": self.camera, "preset": self.preset})
 
     def _select_camera(self, payload: dict[str, Any]) -> None:
         """Switch the S1 camera and/or preset (booth ``in/camera``) and tell every page.
@@ -245,20 +257,14 @@ class Hub:
             if isinstance(ws, web.WebSocketResponse) and not ws.closed:
                 asyncio.ensure_future(_send_json(ws, msg))
 
-    def _pilot_msg(self, error: str | None = None) -> dict[str, Any]:
-        self._pilot_seq += 1
-        payload: dict[str, Any] = {"mode": self.pilot}
+    def _pilot_msg(self) -> dict[str, Any]:
+        return self._sys_msg("sys/pilot", {"mode": self.pilot})
+
+    def _admin_msg(self, error: str | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"ok": self.admin}
         if error:
             payload["error"] = error
-        env = {
-            "topic": "sys/pilot",
-            "ver": 1,
-            "seq": self._pilot_seq,
-            "ts": wall_ms(),
-            "src": "hub",
-            "payload": payload,
-        }
-        return {"type": "env", "env": env}
+        return self._sys_msg("sys/admin", payload)
 
     def _send_roles(self, roles: tuple[str, ...], msg: dict[str, Any]) -> None:
         for role in roles:
@@ -266,25 +272,39 @@ class Hub:
             if isinstance(ws, web.WebSocketResponse) and not ws.closed:
                 asyncio.ensure_future(_send_json(ws, msg))
 
-    def _select_pilot(self, payload: dict[str, Any]) -> None:
-        """Switch the pilot mode (booth ``in/pilot``) if the password matches.
+    def _login(self, payload: dict[str, Any]) -> None:
+        """Log the booth in (``password``) or out (``logout``) and answer ``sys/admin``.
 
-        ``payload``: ``mode`` (``PILOT_MODES``) and ``password``. The password
-        is never logged. A wrong one answers the booth with ``error`` and
-        blocks retries for ``PILOT_RETRY_MS``.
+        The password is never logged. A wrong one blocks further attempts
+        for ``ADMIN_RETRY_MS``. The login ends when the booth disconnects.
         """
-        mode, password = payload.get("mode"), payload.get("password")
-        if mode not in PILOT_MODES or not isinstance(password, str):
-            self.dropped["in/pilot"] += 1
+        if payload.get("logout"):
+            self.admin = False
+            self._event("admin", ok=False)
+            self._send_roles(("booth",), self._admin_msg())
+            return
+        password = payload.get("password")
+        if not isinstance(password, str):
+            self.dropped["in/admin"] += 1
             return
         now = mono_ms()
-        if now - self._pilot_fail_at < PILOT_RETRY_MS:
-            self._send_roles(("booth",), self._pilot_msg("retry"))
+        if now - self._admin_fail_at < ADMIN_RETRY_MS:
+            self._send_roles(("booth",), self._admin_msg("retry"))
             return
         if not hmac.compare_digest(password.encode(), self.cfg.admin_password.encode()):
-            self._pilot_fail_at = now
-            self._event("pilot_denied")
-            self._send_roles(("booth",), self._pilot_msg("password"))
+            self._admin_fail_at = now
+            self._event("admin_denied")
+            self._send_roles(("booth",), self._admin_msg("password"))
+            return
+        self.admin = True
+        self._event("admin", ok=True)
+        self._send_roles(("booth",), self._admin_msg())
+
+    def _select_pilot(self, payload: dict[str, Any]) -> None:
+        """Switch the input source (booth ``in/pilot``, logged in) and tell quest/booth."""
+        mode = payload.get("mode")
+        if mode not in PILOT_MODES:
+            self.dropped["in/pilot"] += 1
             return
         self.pilot = str(mode)
         self._event("pilot", mode=self.pilot)
@@ -404,6 +424,9 @@ class Hub:
                         await _send_json(ws, self._camera_msg())
                     if role in PILOT_ROLES:
                         await _send_json(ws, self._pilot_msg())
+                    if role == "booth":
+                        self.admin = False  # a new booth connection must log in again
+                        await _send_json(ws, self._admin_msg())
                 elif role is None:
                     continue
                 elif kind == "signal":
@@ -431,6 +454,8 @@ class Hub:
         finally:
             if role is not None:
                 self._event("disconnect", role=role)
+                if role == "booth" and self.router.handles.get("booth") is ws:
+                    self.admin = False
                 await self._run(self.router.on_close(role, ws))
         return ws
 

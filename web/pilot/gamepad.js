@@ -23,8 +23,9 @@ export function findGamepad() {
 }
 
 // Returns { hands, estop, view } for one gamepad snapshot.
-// The right stick X is used for the view (yaw), so it is sent as 0: the hub's
-// radial dead zone would otherwise let looking around scale the stage Z command.
+// The right stick is the view (X yaw, Y pitch, 2026-10-05); the stage
+// front/back moves to the D-pad up/down and is sent as the right stick Y with
+// X = 0, so the hub mapping is unchanged.
 export function readGamepad(gp) {
   const hands = {
     left: {
@@ -33,7 +34,7 @@ export function readGamepad(gp) {
       x: pressed(gp, 2), y: pressed(gp, 3), pose: null,
     },
     right: {
-      axes: [0, axis(gp, 3)],
+      axes: [0, (pressed(gp, 13) ? 1 : 0) - (pressed(gp, 12) ? 1 : 0)],
       trigger: value(gp, 7), grip: value(gp, 5), thumb: pressed(gp, 11),
       a: pressed(gp, 0), b: pressed(gp, 1), pose: null,
     },
@@ -43,7 +44,7 @@ export function readGamepad(gp) {
     estop: pressed(gp, 10) && pressed(gp, 11),
     view: {
       yaw: axis(gp, 2),
-      pitch: (pressed(gp, 12) ? 1 : 0) - (pressed(gp, 13) ? 1 : 0),
+      pitch: -axis(gp, 3), // stick up (y < 0) looks up
       reset: pressed(gp, 8),
     },
   };

@@ -21,7 +21,7 @@ const SEND_INTERVAL_MS = 1000 / 30;
 const ESTOP_INTERVAL_MS = 1000;
 const STICK_DEAD_ZONE = 0.15;
 const YAW_SPEED = 2.0; // rad/s at full stick
-const PITCH_SPEED = 1.0; // rad/s while the D-pad is held
+const PITCH_SPEED = 1.0; // rad/s at full stick
 
 const $ = (id) => document.getElementById(id);
 
@@ -63,7 +63,7 @@ async function main() {
   sig.on('close', () => { $('ws').textContent = '切断'; $('ws').className = 'bad'; });
   sig.on('env', (msg) => {
     if (msg.env?.topic === 'sys/pilot' && msg.env.payload?.mode) {
-      $('error').textContent = msg.env.payload.mode === 'booth' ? 'ブースで操縦中：この画面の操作は無効です（映像は見られます）' : '';
+      $('error').textContent = msg.env.payload.mode === 'gamepad' ? 'ブースのゲームコントローラーで操縦中：この画面の操作は無効です（映像は見られます）' : '';
     }
     if (msg.env?.topic === 'sys/camera') {
       // Sub camera is a normal (flat) camera: show the video as is.
@@ -125,7 +125,7 @@ async function main() {
         sig.sendEnv('in/quest', inp.hands);
       }
       if (Math.abs(inp.view.yaw) > STICK_DEAD_ZONE) view.camera.yaw -= inp.view.yaw * YAW_SPEED * dt;
-      view.camera.pitch += inp.view.pitch * PITCH_SPEED * dt;
+      if (Math.abs(inp.view.pitch) > STICK_DEAD_ZONE) view.camera.pitch += inp.view.pitch * PITCH_SPEED * dt;
       if (inp.view.reset) view.reset();
     } else {
       $('pad').textContent = '未接続（ボタンを押すと認識）';

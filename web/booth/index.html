@@ -16,15 +16,21 @@
   #release { width: 100%; margin-top: 8px; padding: 12px; font-size: 18px; background: #333; color: #eee;
              border: 1px solid #666; border-radius: 10px; cursor: pointer; }
   #release.armed { background: #a60; }
-  #camSel, .sel { margin-top: 12px; font-size: 18px; }
-  #camSel button, .sel button { margin: 6px 4px 0 0; padding: 10px 16px; font-size: 18px; background: #246; color: #eee; border: 0; border-radius: 8px; }
-  #camSel button:disabled, .sel button:disabled { background: #2a6; color: #fff; }
+  .sel { margin-top: 12px; font-size: 18px; }
+  .sel button { margin: 6px 4px 0 0; padding: 10px 16px; font-size: 18px; background: #246; color: #eee; border: 0; border-radius: 8px; }
+  .sel button:disabled { background: #2a6; color: #fff; }
+  #settings { margin-top: 12px; font-size: 16px; }
+  #settings button, #admin .row button, #adminLogin { margin-top: 8px; padding: 8px 14px; font-size: 16px; background: #333; color: #eee; border: 1px solid #666; border-radius: 8px; }
+  /* Non-modal, on the right: the E-STOP button on the left stays usable. */
+  #admin { position: fixed; top: 16px; right: 16px; left: auto; margin: 0; width: min(560px, calc(100vw - 32px));
+           background: #1b1b1b; color: #eee; border: 2px solid #9cf; border-radius: 12px; padding: 16px; z-index: 10; }
+  #admin h3 { margin: 0 0 8px; color: #9cf; }
+  #adminPass { font-size: 16px; padding: 8px; width: 12em; background: #222; color: #eee; border: 1px solid #666; border-radius: 6px; }
+  #adminHint { color: #fc3; font-size: 13px; min-height: 1.4em; }
   #releaseHint { color: #aaa; font-size: 13px; min-height: 1.4em; }
   #robot { aspect-ratio: 2 / 1; object-fit: contain; }
   #pano { width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; border-radius: 8px; cursor: grab; touch-action: none; }
   #pano[hidden] { display: none; }
-  #pilotPass { font-size: 16px; padding: 8px; width: 9em; background: #222; color: #eee; border: 1px solid #666; border-radius: 6px; }
-  #pilotHint { color: #fc3; font-size: 13px; min-height: 1.4em; }
   .hint { color: #aaa; font-size: 13px; margin-bottom: 8px; }
   .hint button { margin-left: 8px; padding: 4px 10px; background: #333; color: #eee; border: 1px solid #666; border-radius: 6px; }
   table { border-collapse: collapse; width: 100%; }
@@ -48,27 +54,40 @@
     <button id="estop">E-STOP</button>
     <button id="release">E-STOP 解除（2秒以内に2回）</button>
     <div id="releaseHint"></div>
-    <div id="camSel">S1 カメラ: <b id="camNow">-</b>
-      <button id="camMain">メイン（360°）</button>
-      <button id="camSub">サブ</button>
-    </div>
-    <div id="presetSel" class="sel">S1 送信: <b id="presetNow">-</b>
-      <button id="presetLimited">制限</button>
-      <button id="presetFull">フルスペック</button>
-    </div>
-    <div id="pilotSel" class="sel">操縦: <b id="pilotNow">-</b>
-      <div><input id="pilotPass" type="password" placeholder="パスワード" autocomplete="off">
-        <button id="pilotQuest">Quest で操縦</button>
-        <button id="pilotBooth">ブースで操縦（Quest なし）</button></div>
-      <div id="pilotHint"></div>
+    <div id="settings">
+      <div>操作: <b id="pilotNow">-</b></div>
+      <div>S1 送信: <b id="presetNow">-</b></div>
+      <div>S1 カメラ: <b id="camNow">-</b></div>
+      <button id="adminOpen">Admin（設定の変更）</button>
     </div>
   </section>
+  <dialog id="admin">
+    <h3>Admin</h3>
+    <div id="loginBox">
+      <input id="adminPass" type="password" placeholder="パスワード" autocomplete="off">
+      <button id="adminLogin">ログイン</button>
+    </div>
+    <div id="adminBox" hidden>
+      <div class="sel">操作:
+        <button id="pilotQuest">Quest のコントローラー</button>
+        <button id="pilotGamepad">ゲームコントローラー（このPC）</button></div>
+      <div class="sel">S1 送信:
+        <button id="presetLimited">制限</button>
+        <button id="presetFull">フルスペック</button></div>
+      <div class="sel">S1 カメラ:
+        <button id="camMain">メイン（360°）</button>
+        <button id="camSub">サブ</button></div>
+      <p class="hint">操作を切り替えると、それまでの入力は無視され、約 0.3 秒で一旦停止します。E-STOP はこの画面を開いたままでも使えます。</p>
+    </div>
+    <div id="adminHint"></div>
+    <div class="row"><button id="adminClose">閉じる（ログアウト）</button></div>
+  </dialog>
   <section>
     <div id="robotBox">
       <video id="robot" autoplay playsinline muted></video>
       <canvas id="pano" hidden></canvas>
       <div id="padBox" class="hint" hidden>コントローラー: <span id="pad">-</span> <span id="focusHint"></span><br>
-        左スティック＝走行 ／ A・B＝ステージ横 ／ 右スティック上下＝ステージ前後 ／ 右スティック左右・十字上下・ドラッグ＝視点 ／ ホイール＝ズーム ／ View(Back)・ダブルクリック＝視点リセット ／ L3＋R3・Esc＝E-STOP</div>
+        左スティック＝走行 ／ A・B＝ステージ横 ／ 十字上下＝ステージ前後 ／ 右スティック・ドラッグ＝視点（左右・上下） ／ ホイール＝ズーム ／ View(Back)・ダブルクリック＝視点リセット ／ L3＋R3・Esc＝E-STOP</div>
       <div class="hint">ロボ側映像（S1: <span id="s1State">-</span> ／ Quest へ再送 S4: <span id="s4State">-</span>）。この画面を閉じる・最小化すると Quest の映像も止まります。
         <button id="robotAudio">車載音声: 消音中（押すとブースで再生）</button></div>
     </div>

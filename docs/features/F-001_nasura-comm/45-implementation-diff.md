@@ -41,6 +41,8 @@ status: draft
 | DD-0016 / DD-0011（2026-10-05、P0-3） | hub と car_ctrl が2秒ごとに `sys` イベント（CPU 使用率・メモリ・CPU 温度〔Linux のみ〕）を書き、ログを fsync する（`sysmon.py`、`EventLog.sys_loop`）。`stats.js` にパケットロス・NACK・エンコーダ／デコーダの実装名とハードウェアかどうかを追加。hub は car_media の統計を car_ctrl に転送し（WebSocket の `media_stats`）、car_ctrl も車載PCのログに書く | 本人の指示（リハーサル中に PC が落ちた原因の調査用） | 未 |
 | AD-0001 / AD-0002 / AD-0003 / DD-0008（2026-10-05、P0-4） | 既定の S1 の受け手を booth にし、booth ページが S1 を表示しつつ S4（booth → quest）で再送する（`--s1-route relay`）。`--s1-route direct` で従来の経路に戻せる。`SignalRouter` に経路表を引数で渡せるようにし、`SESSIONS_RELAY` を追加。`rtc.js` にトラック無しの送信枠（`sendKinds`）と `setStream`（`replaceTrack`）を追加。`/status` に S4 を追加。既存の E2E（`test_st_media.py`）は S1 直結の設計に基づくので `--s1-route direct` で実行する | 本人の指示（ブースでロボ側映像を見たい、ロボ側の上りは増やさない） | 20（AD-0001、AD-0002、AD-0003）。30・50・60 は未 |
 | DD-0004 / DD-0009 / DD-0013（2026-10-05） | 操縦モード（`quest`／`booth`）を追加。booth が `in/pilot`（`mode`、`password`）で切り替え、hub はパスワード（`--admin-password`、既定は環境変数 `NASURA_ADMIN_PASSWORD` または `Admin`）を照合し、`sys/pilot` を booth・quest に配る。hub は現在の操縦者の `in/quest` だけを使う。booth モードでは booth ページが 360°映像を見回し表示し、Gamepad API の入力を `in/quest` で送る（pilot ページと同じ処理）。パスワードはログにも `/config.json` にも出さない。誤入力の後 1 秒は受け付けない | 本人の指示（Quest なしでブースだけで完結するモードを、ブースから切り替えたい。誤操作が迷惑なのでパスワードをかける。初期パスワードは Admin） | 未 |
+| DD-0004 / DD-0009 / DD-0013（2026-10-05、追加） | 操縦モードを「操作の入力元」（`quest`：Quest のコントローラー、`gamepad`：booth の PC のゲームコントローラー）に改め、booth の Admin ポップアップにまとめた。booth は `in/admin`（`password`／`logout`）でログインし、ログイン中だけ `in/pilot`・`in/camera` を受け付ける（未ログインは `sys/admin` の `error: login` で返す）。ログインは booth の接続ごとで、再接続で解除。ゲームコントローラーの割り当てを、視点の上下＝右スティック上下、ステージ前後＝十字キー上下に変更（pilot ページと共通） | 本人の指示（コントローラーと Quest のどちらで操作するかをブースから切り替えたい。Admin でポップアップから色々できるように。視点の上下も右スティックに） | 未 |
+
 
 ## 設計に無い副作用
 

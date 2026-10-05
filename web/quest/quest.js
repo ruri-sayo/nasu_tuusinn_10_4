@@ -37,7 +37,7 @@ async function main() {
   sig.on('close', () => { $('ws').textContent = '切断'; $('ws').className = 'bad'; });
   sig.on('env', (msg) => {
     if (msg.env?.topic === 'sys/pilot' && msg.env.payload?.mode) {
-      $('error').textContent = msg.env.payload.mode === 'booth' ? 'ブースで操縦中：この画面の操作は無効です（映像は見られます）' : '';
+      $('error').textContent = msg.env.payload.mode === 'gamepad' ? 'ブースのゲームコントローラーで操縦中：この画面の操作は無効です（映像は見られます）' : '';
     }
     if (msg.env?.topic === 'sys/state') {
       const st = msg.env.payload.state;

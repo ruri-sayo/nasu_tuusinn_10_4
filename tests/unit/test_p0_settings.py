@@ -105,7 +105,7 @@ def _env(topic, payload, src):
     return {"topic": topic, "ver": 1, "seq": 0, "ts": 0, "src": src, "payload": payload}
 
 
-def test_pilot_mode_needs_password_and_gates_input(monkeypatch):
+def test_admin_login_gates_settings_and_input_source(monkeypatch):
     monkeypatch.delenv("NASURA_ADMIN_PASSWORD", raising=False)
     hub = Hub(parse_args([]))
     assert hub.cfg.admin_password == "Admin"
@@ -116,24 +116,36 @@ def test_pilot_mode_needs_password_and_gates_input(monkeypatch):
 
     hub._handle_input("booth", _env("in/quest", stick, "booth"))
     hub._handle_input("quest", _env("in/quest", stick, "quest"))
-    assert seen == ["quest"]  # default: only the quest drives
+    assert seen == ["quest"]  # default: the Quest controllers drive
 
-    hub._handle_input("booth", _env("in/pilot", {"mode": "booth", "password": "x"}, "booth"))
-    assert hub.pilot == "quest"
-    hub._pilot_fail_at -= 2000  # let the retry block expire
-    hub._handle_input("booth", _env("in/pilot", {"mode": "booth", "password": "Admin"}, "booth"))
-    assert hub.pilot == "booth"
+    # Not logged in: switching is refused.
+    hub._handle_input("booth", _env("in/pilot", {"mode": "gamepad"}, "booth"))
+    hub._handle_input("booth", _env("in/camera", {"preset": "full"}, "booth"))
+    assert (hub.pilot, hub.preset) == ("quest", "limited")
+
+    hub._handle_input("booth", _env("in/admin", {"password": "x"}, "booth"))
+    assert not hub.admin
+    hub._admin_fail_at -= 2000  # let the retry block expire
+    hub._handle_input("booth", _env("in/admin", {"password": "Admin"}, "booth"))
+    assert hub.admin
+    hub._handle_input("booth", _env("in/pilot", {"mode": "gamepad"}, "booth"))
+    hub._handle_input("booth", _env("in/camera", {"preset": "full"}, "booth"))
+    assert (hub.pilot, hub.preset) == ("gamepad", "full")
 
     seen.clear()
     hub._handle_input("quest", _env("in/quest", stick, "quest"))
     hub._handle_input("booth", _env("in/quest", stick, "booth"))
-    assert seen == ["booth"]
-    hub._handle_input("quest", _env("in/pilot", {"mode": "quest", "password": "Admin"}, "quest"))
-    assert hub.pilot == "booth"  # only the booth may switch
+    assert seen == ["booth"]  # gamepad mode: only the booth page drives
+    hub._handle_input("quest", _env("in/pilot", {"mode": "quest"}, "quest"))
+    assert hub.pilot == "gamepad"  # the quest may not switch
+
+    hub._handle_input("booth", _env("in/admin", {"logout": True}, "booth"))
+    hub._handle_input("booth", _env("in/pilot", {"mode": "quest"}, "booth"))
+    assert hub.pilot == "gamepad"
 
 
-def test_pilot_wrong_password_blocks_retry():
+def test_admin_wrong_password_blocks_retry():
     hub = Hub(parse_args(["--admin-password", "pw"]))
-    hub._select_pilot({"mode": "booth", "password": "nope"})
-    hub._select_pilot({"mode": "booth", "password": "pw"})  # within the retry block
-    assert hub.pilot == "quest"
+    hub._login({"password": "nope"})
+    hub._login({"password": "pw"})  # within the retry block
+    assert not hub.admin

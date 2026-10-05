@@ -5,9 +5,11 @@
 // 1 Hz and render it; show telemetry pushed by the hub; select the S1 camera
 // and send preset (in/camera). With S1_route "relay": S1 answerer (show the
 // robot video here) and S4 offerer (re-send the same stream to the quest).
-// Pilot mode "booth" (switched with the admin password, in/pilot): this page
-// shows the 360° video with a pan/zoom view and sends gamepad input as
-// in/quest at 30 Hz, like the pilot page; the hub then ignores the quest.
+// Admin popup (in/admin login, then in/pilot and in/camera): input source
+// (Quest controllers / game controller on this PC), S1 send preset, S1 camera.
+// Input source "gamepad": this page shows the 360° video with a pan/zoom view
+// and sends gamepad input as in/quest at 30 Hz, like the pilot page; the hub
+// then ignores the quest's input.
 // Non-responsibilities: SFU-style forwarding without re-encoding (the browser
 // re-encodes S4).
 // Non-responsibilities: browser dialogs (alert/confirm/prompt are not used).
@@ -124,6 +126,7 @@ async function main() {
   sig.on('env', (msg) => {
     const env = msg.env;
     if (env?.topic === 'sys/pilot') onPilot(env.payload || {});
+    if (env?.topic === 'sys/admin') onAdmin(env.payload || {});
     if (env?.topic === 'sys/camera') {
       const src = env.payload?.source;
       $('camNow').textContent = src === 'sub' ? 'サブ' : 'メイン（360°）';
@@ -144,12 +147,16 @@ async function main() {
   $('camSub').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'sub' }));
   $('presetLimited').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'limited' }));
   $('presetFull').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'full' }));
-  const askPilot = (mode) => {
-    sig.sendEnv('in/pilot', { mode, password: $('pilotPass').value });
-    $('pilotPass').value = '';
+  $('pilotQuest').addEventListener('click', () => sig.sendEnv('in/pilot', { mode: 'quest' }));
+  $('pilotGamepad').addEventListener('click', () => sig.sendEnv('in/pilot', { mode: 'gamepad' }));
+  const login = () => {
+    sig.sendEnv('in/admin', { password: $('adminPass').value });
+    $('adminPass').value = '';
   };
-  $('pilotQuest').addEventListener('click', () => askPilot('quest'));
-  $('pilotBooth').addEventListener('click', () => askPilot('booth'));
+  $('adminOpen').addEventListener('click', () => { $('admin').show(); $('adminPass').focus(); });
+  $('adminLogin').addEventListener('click', login);
+  $('adminPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+  $('adminClose').addEventListener('click', () => { sig.sendEnv('in/admin', { logout: true }); $('admin').close(); });
 
   $('estop').addEventListener('click', estop);
   $('release').addEventListener('click', release);
@@ -161,7 +168,7 @@ async function main() {
   // Before any await: the S1 offer can arrive as soon as the WebSocket opens,
   // and an answerer that registers late would drop it.
   if (cfg.S1_route === 'relay') startRelay();
-  else { $('robotBox').hidden = true; $('pilotSel').hidden = true; } // booth mode needs the relay (S1 here)
+  else { $('robotBox').hidden = true; $('pilotGamepad').hidden = true; } // gamepad mode needs the relay (S1 here)
 
   let stream = null;
   try {
@@ -206,19 +213,23 @@ const SEND_INTERVAL_MS = 1000 / 30;
 const ESTOP_INTERVAL_MS = 1000;
 const STICK_DEAD_ZONE = 0.15;
 const YAW_SPEED = 2.0; // rad/s at full stick
-const PITCH_SPEED = 1.0; // rad/s while the D-pad is held
+const PITCH_SPEED = 1.0; // rad/s at full stick
 let pilotMode = 'quest';
 
+function onAdmin(p) {
+  const hints = { password: 'パスワードが違います', retry: '少し待ってから入力してください', login: 'ログインしてください' };
+  $('adminHint').textContent = hints[p.error] || '';
+  $('loginBox').hidden = Boolean(p.ok);
+  $('adminBox').hidden = !p.ok;
+}
+
 function onPilot(p) {
-  if (p.error === 'password') $('pilotHint').textContent = 'パスワードが違います';
-  else if (p.error === 'retry') $('pilotHint').textContent = '少し待ってから入力してください';
-  else $('pilotHint').textContent = '';
   if (!p.mode) return;
   pilotMode = p.mode;
-  const booth = pilotMode === 'booth';
-  $('pilotNow').textContent = booth ? 'ブース（Quest の入力は無効）' : 'Quest';
+  const booth = pilotMode === 'gamepad';
+  $('pilotNow').textContent = booth ? 'ゲームコントローラー（このPC。Quest の入力は無効）' : 'Quest のコントローラー';
   $('pilotQuest').disabled = !booth;
-  $('pilotBooth').disabled = booth;
+  $('pilotGamepad').disabled = booth;
   $('robot').hidden = booth;
   $('pano').hidden = !booth;
   $('padBox').hidden = !booth;
@@ -252,7 +263,7 @@ function startBoothPilot() {
     requestAnimationFrame(frame);
     const dt = Math.min((time - lastFrame) / 1000, 0.1);
     lastFrame = time;
-    if (pilotMode !== 'booth') return;
+    if (pilotMode !== 'gamepad') return;
     const gp = findGamepad();
     if (gp) {
       const inp = readGamepad(gp);
@@ -267,7 +278,7 @@ function startBoothPilot() {
         sig.sendEnv('in/quest', inp.hands);
       }
       if (Math.abs(inp.view.yaw) > STICK_DEAD_ZONE) view.camera.yaw -= inp.view.yaw * YAW_SPEED * dt;
-      view.camera.pitch += inp.view.pitch * PITCH_SPEED * dt;
+      if (Math.abs(inp.view.pitch) > STICK_DEAD_ZONE) view.camera.pitch += inp.view.pitch * PITCH_SPEED * dt;
       if (inp.view.reset) view.reset();
     } else {
       $('pad').textContent = '未接続（ボタンを押すと認識）';
