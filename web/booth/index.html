@@ -21,6 +21,10 @@
   #camSel button:disabled, .sel button:disabled { background: #2a6; color: #fff; }
   #releaseHint { color: #aaa; font-size: 13px; min-height: 1.4em; }
   #robot { aspect-ratio: 2 / 1; object-fit: contain; }
+  #pano { width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; border-radius: 8px; cursor: grab; touch-action: none; }
+  #pano[hidden] { display: none; }
+  #pilotPass { font-size: 16px; padding: 8px; width: 9em; background: #222; color: #eee; border: 1px solid #666; border-radius: 6px; }
+  #pilotHint { color: #fc3; font-size: 13px; min-height: 1.4em; }
   .hint { color: #aaa; font-size: 13px; margin-bottom: 8px; }
   .hint button { margin-left: 8px; padding: 4px 10px; background: #333; color: #eee; border: 1px solid #666; border-radius: 6px; }
   table { border-collapse: collapse; width: 100%; }
@@ -52,10 +56,19 @@
       <button id="presetLimited">制限</button>
       <button id="presetFull">フルスペック</button>
     </div>
+    <div id="pilotSel" class="sel">操縦: <b id="pilotNow">-</b>
+      <div><input id="pilotPass" type="password" placeholder="パスワード" autocomplete="off">
+        <button id="pilotQuest">Quest で操縦</button>
+        <button id="pilotBooth">ブースで操縦（Quest なし）</button></div>
+      <div id="pilotHint"></div>
+    </div>
   </section>
   <section>
     <div id="robotBox">
       <video id="robot" autoplay playsinline muted></video>
+      <canvas id="pano" hidden></canvas>
+      <div id="padBox" class="hint" hidden>コントローラー: <span id="pad">-</span> <span id="focusHint"></span><br>
+        左スティック＝走行 ／ A・B＝ステージ横 ／ 右スティック上下＝ステージ前後 ／ 右スティック左右・十字上下・ドラッグ＝視点 ／ ホイール＝ズーム ／ View(Back)・ダブルクリック＝視点リセット ／ L3＋R3・Esc＝E-STOP</div>
       <div class="hint">ロボ側映像（S1: <span id="s1State">-</span> ／ Quest へ再送 S4: <span id="s4State">-</span>）。この画面を閉じる・最小化すると Quest の映像も止まります。
         <button id="robotAudio">車載音声: 消音中（押すとブースで再生）</button></div>
     </div>

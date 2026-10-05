@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import json
 import logging
 import ssl
@@ -69,8 +70,17 @@ REPLACED_CLOSE_CODE = 4001
 STATS_STALE_MS = 5000
 INPUT_TOPICS = {
     "quest": {"in/quest", "in/estop", "in/estop_release"},
-    "booth": {"in/estop", "in/estop_release", "in/camera"},
+    "booth": {"in/estop", "in/estop_release", "in/camera", "in/pilot", "in/quest"},
 }
+PILOT_MODES = ("quest", "booth")
+"""Who drives: ``quest`` (Quest or pilot page, default) or ``booth`` (the booth
+page views the 360° video and sends ``in/quest`` from a gamepad, no Quest).
+Only the selected role's ``in/quest`` is used; switching needs the admin
+password. The other role's input simply stops, so the input-loss timeout (L1)
+stops the drive until the new pilot sends input."""
+PILOT_RETRY_MS = 1000
+"""After a wrong password, further attempts are ignored for this long."""
+PILOT_ROLES = ("quest", "booth")
 CAMERAS = ("main", "sub")
 """S1 camera sources selectable from the booth (provisional, 2026-10-04).
 The booth also selects the S1 send preset (``S1_PRESETS``) with the same topic."""
@@ -107,6 +117,9 @@ class Hub:
         self.camera = "main"
         self.preset = cfg.s1_preset
         self._camera_seq = 0
+        self.pilot = "quest"
+        self._pilot_seq = 0
+        self._pilot_fail_at = -PILOT_RETRY_MS
 
     # ---- lifecycle -------------------------------------------------------
 
@@ -159,6 +172,11 @@ class Hub:
         if env["topic"] == "in/camera":
             self._select_camera(env["payload"])
             return
+        if env["topic"] == "in/pilot":
+            self._select_pilot(env["payload"])
+            return
+        if env["topic"] == "in/quest" and role != self.pilot:
+            return  # not the current pilot (mode switch); not counted as a drop
         for out in self.core.on_input(env, mono_ms(), wall_ms()):
             self._event(out["topic"], **out["payload"])
             self.channels.send(out)
@@ -226,6 +244,51 @@ class Hub:
             ws = self.router.handles.get(role)
             if isinstance(ws, web.WebSocketResponse) and not ws.closed:
                 asyncio.ensure_future(_send_json(ws, msg))
+
+    def _pilot_msg(self, error: str | None = None) -> dict[str, Any]:
+        self._pilot_seq += 1
+        payload: dict[str, Any] = {"mode": self.pilot}
+        if error:
+            payload["error"] = error
+        env = {
+            "topic": "sys/pilot",
+            "ver": 1,
+            "seq": self._pilot_seq,
+            "ts": wall_ms(),
+            "src": "hub",
+            "payload": payload,
+        }
+        return {"type": "env", "env": env}
+
+    def _send_roles(self, roles: tuple[str, ...], msg: dict[str, Any]) -> None:
+        for role in roles:
+            ws = self.router.handles.get(role)
+            if isinstance(ws, web.WebSocketResponse) and not ws.closed:
+                asyncio.ensure_future(_send_json(ws, msg))
+
+    def _select_pilot(self, payload: dict[str, Any]) -> None:
+        """Switch the pilot mode (booth ``in/pilot``) if the password matches.
+
+        ``payload``: ``mode`` (``PILOT_MODES``) and ``password``. The password
+        is never logged. A wrong one answers the booth with ``error`` and
+        blocks retries for ``PILOT_RETRY_MS``.
+        """
+        mode, password = payload.get("mode"), payload.get("password")
+        if mode not in PILOT_MODES or not isinstance(password, str):
+            self.dropped["in/pilot"] += 1
+            return
+        now = mono_ms()
+        if now - self._pilot_fail_at < PILOT_RETRY_MS:
+            self._send_roles(("booth",), self._pilot_msg("retry"))
+            return
+        if not hmac.compare_digest(password.encode(), self.cfg.admin_password.encode()):
+            self._pilot_fail_at = now
+            self._event("pilot_denied")
+            self._send_roles(("booth",), self._pilot_msg("password"))
+            return
+        self.pilot = str(mode)
+        self._event("pilot", mode=self.pilot)
+        self._send_roles(PILOT_ROLES, self._pilot_msg())
 
     def _broadcast(self, env: Envelope) -> None:
         msg = {"type": "env", "env": env}
@@ -339,6 +402,8 @@ class Hub:
                     await self._run(self.router.on_hello(role, ws))
                     if role in CAMERA_ROLES:
                         await _send_json(ws, self._camera_msg())
+                    if role in PILOT_ROLES:
+                        await _send_json(ws, self._pilot_msg())
                 elif role is None:
                     continue
                 elif kind == "signal":

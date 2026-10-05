@@ -13,6 +13,7 @@ Non-responsibilities:
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -87,6 +88,10 @@ class HubConfig:
     )
     """Booth -> quest re-send on the booth LAN (only the limits are used)."""
     up_budget_bps: int = 4_000_000
+    admin_password: str = field(
+        default_factory=lambda: os.environ.get("NASURA_ADMIN_PASSWORD", "Admin"), repr=False
+    )
+    """Required by the booth to switch the pilot mode. Never sent to pages."""
     yaw_offset_deg: float = 0.0
     """Robot front in the 360° image, degrees right of the image center
     (Insta360 mounting offset); viewers turn the sphere to put it ahead."""
@@ -143,6 +148,11 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     ap.add_argument("--audio-max-bitrate", type=int, default=d.s1.audio_max_bitrate)
     ap.add_argument("--up-budget-bps", type=int, default=d.up_budget_bps)
     ap.add_argument(
+        "--admin-password",
+        default=d.admin_password,
+        help="booth password for the pilot mode switch (default: $NASURA_ADMIN_PASSWORD or Admin)",
+    )
+    ap.add_argument(
         "--yaw-offset-deg",
         type=float,
         default=d.yaw_offset_deg,
@@ -166,6 +176,7 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     d.s1.audio_max_bitrate = d.s2.audio_max_bitrate = a.audio_max_bitrate
     d.s4.audio_max_bitrate = max(a.audio_max_bitrate, 64_000)
     d.up_budget_bps = a.up_budget_bps
+    d.admin_password = a.admin_password
     d.yaw_offset_deg = a.yaw_offset_deg
     return d
 

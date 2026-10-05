@@ -99,3 +99,41 @@ def test_route_default_relay_and_direct_option():
     hub = Hub(parse_args(["--s1-route", "direct"]))
     assert "S4" not in hub.router.sessions
     assert Hub(parse_args([])).router.sessions["S1"] == ("car_media", "booth")
+
+
+def _env(topic, payload, src):
+    return {"topic": topic, "ver": 1, "seq": 0, "ts": 0, "src": src, "payload": payload}
+
+
+def test_pilot_mode_needs_password_and_gates_input(monkeypatch):
+    monkeypatch.delenv("NASURA_ADMIN_PASSWORD", raising=False)
+    hub = Hub(parse_args([]))
+    assert hub.cfg.admin_password == "Admin"
+    assert "Admin" not in str(build_config_json(hub.cfg))
+    seen = []
+    hub.core.on_input = lambda env, *_: seen.append(env["src"]) or []
+    stick = {"left": {"axes": [0, -1]}, "right": {}}
+
+    hub._handle_input("booth", _env("in/quest", stick, "booth"))
+    hub._handle_input("quest", _env("in/quest", stick, "quest"))
+    assert seen == ["quest"]  # default: only the quest drives
+
+    hub._handle_input("booth", _env("in/pilot", {"mode": "booth", "password": "x"}, "booth"))
+    assert hub.pilot == "quest"
+    hub._pilot_fail_at -= 2000  # let the retry block expire
+    hub._handle_input("booth", _env("in/pilot", {"mode": "booth", "password": "Admin"}, "booth"))
+    assert hub.pilot == "booth"
+
+    seen.clear()
+    hub._handle_input("quest", _env("in/quest", stick, "quest"))
+    hub._handle_input("booth", _env("in/quest", stick, "booth"))
+    assert seen == ["booth"]
+    hub._handle_input("quest", _env("in/pilot", {"mode": "quest", "password": "Admin"}, "quest"))
+    assert hub.pilot == "booth"  # only the booth may switch
+
+
+def test_pilot_wrong_password_blocks_retry():
+    hub = Hub(parse_args(["--admin-password", "pw"]))
+    hub._select_pilot({"mode": "booth", "password": "nope"})
+    hub._select_pilot({"mode": "booth", "password": "pw"})  # within the retry block
+    assert hub.pilot == "quest"

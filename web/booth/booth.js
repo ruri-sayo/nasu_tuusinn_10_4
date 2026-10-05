@@ -5,6 +5,9 @@
 // 1 Hz and render it; show telemetry pushed by the hub; select the S1 camera
 // and send preset (in/camera). With S1_route "relay": S1 answerer (show the
 // robot video here) and S4 offerer (re-send the same stream to the quest).
+// Pilot mode "booth" (switched with the admin password, in/pilot): this page
+// shows the 360° video with a pan/zoom view and sends gamepad input as
+// in/quest at 30 Hz, like the pilot page; the hub then ignores the quest.
 // Non-responsibilities: SFU-style forwarding without re-encoding (the browser
 // re-encodes S4).
 // Non-responsibilities: browser dialogs (alert/confirm/prompt are not used).
@@ -14,6 +17,8 @@
 import { Signaling } from '../common/signaling.js';
 import { createSession } from '../common/rtc.js';
 import { startStats } from '../common/stats.js';
+import { createPanoView } from '../pilot/pano-view.js';
+import { findGamepad, readGamepad } from '../pilot/gamepad.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '-').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -118,6 +123,7 @@ async function main() {
   });
   sig.on('env', (msg) => {
     const env = msg.env;
+    if (env?.topic === 'sys/pilot') onPilot(env.payload || {});
     if (env?.topic === 'sys/camera') {
       const src = env.payload?.source;
       $('camNow').textContent = src === 'sub' ? 'サブ' : 'メイン（360°）';
@@ -138,6 +144,12 @@ async function main() {
   $('camSub').addEventListener('click', () => sig.sendEnv('in/camera', { source: 'sub' }));
   $('presetLimited').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'limited' }));
   $('presetFull').addEventListener('click', () => sig.sendEnv('in/camera', { preset: 'full' }));
+  const askPilot = (mode) => {
+    sig.sendEnv('in/pilot', { mode, password: $('pilotPass').value });
+    $('pilotPass').value = '';
+  };
+  $('pilotQuest').addEventListener('click', () => askPilot('quest'));
+  $('pilotBooth').addEventListener('click', () => askPilot('booth'));
 
   $('estop').addEventListener('click', estop);
   $('release').addEventListener('click', release);
@@ -149,7 +161,7 @@ async function main() {
   // Before any await: the S1 offer can arrive as soon as the WebSocket opens,
   // and an answerer that registers late would drop it.
   if (cfg.S1_route === 'relay') startRelay();
-  else $('robotBox').hidden = true;
+  else { $('robotBox').hidden = true; $('pilotSel').hidden = true; } // booth mode needs the relay (S1 here)
 
   let stream = null;
   try {
@@ -181,10 +193,90 @@ function startRelay() {
   });
   startStats({ sig, session: 'S1', role: 'booth', getPc: () => s1.pc });
   startStats({ sig, session: 'S4', role: 'booth', getPc: () => s4.pc });
+  startBoothPilot();
   $('robotAudio').addEventListener('click', () => {
     robot.muted = !robot.muted;
     $('robotAudio').textContent = robot.muted ? '車載音声: 消音中（押すとブースで再生）' : '車載音声: 再生中（押すと消音）';
   });
+}
+
+// ---- pilot mode ----------------------------------------------------------
+
+const SEND_INTERVAL_MS = 1000 / 30;
+const ESTOP_INTERVAL_MS = 1000;
+const STICK_DEAD_ZONE = 0.15;
+const YAW_SPEED = 2.0; // rad/s at full stick
+const PITCH_SPEED = 1.0; // rad/s while the D-pad is held
+let pilotMode = 'quest';
+
+function onPilot(p) {
+  if (p.error === 'password') $('pilotHint').textContent = 'パスワードが違います';
+  else if (p.error === 'retry') $('pilotHint').textContent = '少し待ってから入力してください';
+  else $('pilotHint').textContent = '';
+  if (!p.mode) return;
+  pilotMode = p.mode;
+  const booth = pilotMode === 'booth';
+  $('pilotNow').textContent = booth ? 'ブース（Quest の入力は無効）' : 'Quest';
+  $('pilotQuest').disabled = !booth;
+  $('pilotBooth').disabled = booth;
+  $('robot').hidden = booth;
+  $('pano').hidden = !booth;
+  $('padBox').hidden = !booth;
+}
+
+// Pan/zoom 360° view of the robot video and gamepad driving (booth mode).
+// Input is sent from requestAnimationFrame only while booth mode is on and a
+// gamepad is connected: a hidden window or an unplugged gamepad stops the
+// input and the hub's input-loss timeout stops the drive.
+function startBoothPilot() {
+  const canvas = $('pano');
+  const layout = (new URLSearchParams(location.search).get('layout') || 'equirect').toLowerCase();
+  const view = createPanoView({ canvas, video: $('robot'), layout, yawOffsetDeg: cfg.view?.yaw_offset_deg ?? 0 });
+  let drag = null;
+  canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointerup', () => { drag = null; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const k = (view.camera.fov * Math.PI / 180) / canvas.clientHeight;
+    view.camera.yaw += (e.clientX - drag.x) * k;
+    view.camera.pitch += (e.clientY - drag.y) * k;
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.camera.fov += e.deltaY * 0.05; }, { passive: false });
+  canvas.addEventListener('dblclick', () => view.reset());
+
+  let lastSent = 0;
+  let lastEstop = -Infinity;
+  let lastFrame = performance.now();
+  function frame(time) {
+    requestAnimationFrame(frame);
+    const dt = Math.min((time - lastFrame) / 1000, 0.1);
+    lastFrame = time;
+    if (pilotMode !== 'booth') return;
+    const gp = findGamepad();
+    if (gp) {
+      const inp = readGamepad(gp);
+      $('pad').textContent = gp.id.slice(0, 40);
+      $('pad').className = document.hasFocus() ? 'ok' : 'bad';
+      if (inp.estop && time - lastEstop >= ESTOP_INTERVAL_MS) {
+        lastEstop = time;
+        sig.sendEnv('in/estop', { reason: 'booth pilot both sticks' });
+      }
+      if (time - lastSent >= SEND_INTERVAL_MS) {
+        lastSent = time;
+        sig.sendEnv('in/quest', inp.hands);
+      }
+      if (Math.abs(inp.view.yaw) > STICK_DEAD_ZONE) view.camera.yaw -= inp.view.yaw * YAW_SPEED * dt;
+      view.camera.pitch += inp.view.pitch * PITCH_SPEED * dt;
+      if (inp.view.reset) view.reset();
+    } else {
+      $('pad').textContent = '未接続（ボタンを押すと認識）';
+      $('pad').className = 'bad';
+    }
+    $('focusHint').textContent = document.hasFocus() ? '' : '（このウィンドウを選択してください）';
+    view.render();
+  }
+  requestAnimationFrame(frame);
 }
 
 main().catch((err) => { $('error').textContent = String(err); });
