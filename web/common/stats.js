@@ -3,12 +3,17 @@
 // Responsibilities:
 //   - Every 2 s, summarize getStats() of a session and send it to the hub as
 //     {type: "stats", session, data}. Also hand the summary to a callback.
+//   - Include video packet loss (received side: loss_pct over the period;
+//     sending side: the receiver's report, remote_loss_pct), NACKs and the
+//     encoder / decoder implementation (hardware or software) for crash and
+//     quality investigation.
 // Non-responsibilities:
 //   - Display (pages render as they like).
 // Side Effects: sends WebSocket messages.
 
 export function startStats({ sig, session, role, getPc, onSummary, periodMs = 2000 }) {
   let prev = new Map();
+  let prevPkts = new Map();
   let prevAt = performance.now();
 
   async function sample() {
@@ -19,6 +24,7 @@ export function startStats({ sig, session, role, getPc, onSummary, periodMs = 20
     if (pc) {
       const report = await pc.getStats();
       const next = new Map();
+      const nextPkts = new Map();
       let sendBytes = 0;
       let recvBytes = 0;
       const pairs = [];
@@ -37,10 +43,28 @@ export function startStats({ sig, session, role, getPc, onSummary, periodMs = 20
             if (s.type === 'inbound-rtp') {
               data.frames_dropped = s.framesDropped;
               if (s.jitter !== undefined) data.jitter_ms = Math.round(s.jitter * 1000);
-            } else if (s.qualityLimitationReason) {
-              data.quality_limit = s.qualityLimitationReason;
+              const lost = s.packetsLost ?? 0;
+              const got = s.packetsReceived ?? 0;
+              nextPkts.set(s.id, [lost, got]);
+              const [lost0, got0] = prevPkts.get(s.id) || [lost, got];
+              const total = (lost - lost0) + (got - got0);
+              data.packets_lost = lost;
+              data.loss_pct = total > 0 ? Math.round((1000 * (lost - lost0)) / total) / 10 : 0;
+              if (s.nackCount !== undefined) data.nack_sent = s.nackCount;
+              if (s.decoderImplementation) data.decoder = s.decoderImplementation;
+              if (s.powerEfficientDecoder !== undefined) data.hw_decoder = s.powerEfficientDecoder;
+            } else {
+              if (s.qualityLimitationReason) data.quality_limit = s.qualityLimitationReason;
+              if (s.nackCount !== undefined) data.nack_recv = s.nackCount;
+              if (s.retransmittedPacketsSent !== undefined) data.retx_packets = s.retransmittedPacketsSent;
+              if (s.encoderImplementation) data.encoder = s.encoderImplementation;
+              if (s.powerEfficientEncoder !== undefined) data.hw_encoder = s.powerEfficientEncoder;
             }
           }
+        } else if (s.type === 'remote-inbound-rtp' && s.kind === 'video') {
+          // The receiver's RTCP report about what we send.
+          if (s.fractionLost !== undefined) data.remote_loss_pct = Math.round(s.fractionLost * 1000) / 10;
+          if (s.packetsLost !== undefined) data.remote_packets_lost = s.packetsLost;
         } else if (s.type === 'candidate-pair') {
           pairs.push(s);
         } else if (s.type === 'local-candidate' || s.type === 'remote-candidate') {
@@ -62,6 +86,7 @@ export function startStats({ sig, session, role, getPc, onSummary, periodMs = 20
         data.recv_kbps = Math.round((recvBytes * 8) / 1000 / dt);
       }
       prev = next;
+      prevPkts = nextPkts;
     }
     prevAt = now;
     sig.send('stats', { session, data });

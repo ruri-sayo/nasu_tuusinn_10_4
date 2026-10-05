@@ -100,6 +100,7 @@ class Hub:
         self.telemetry: dict[str, Any] = {}
         self.events = events
         self._task: asyncio.Task[None] | None = None
+        self._sys_task: asyncio.Task[None] | None = None
         self._last_log = 0
         self.camera = "main"
         self.preset = cfg.s1_preset
@@ -108,15 +109,18 @@ class Hub:
     # ---- lifecycle -------------------------------------------------------
 
     async def start(self, _app: web.Application | None = None) -> None:
-        """Start the control timer."""
+        """Start the control timer and the host load log."""
         self._task = asyncio.create_task(self._control_loop())
+        if self.events:
+            self._sys_task = asyncio.create_task(self.events.sys_loop())
 
     async def stop(self, _app: web.Application | None = None) -> None:
-        """Stop the timer and close the S3 peer."""
-        if self._task:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
+        """Stop the timers and close the S3 peer."""
+        for task in (self._task, self._sys_task):
+            if task:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
         await self._close_pc()
 
     def _event(self, kind: str, **fields: Any) -> None:
@@ -352,11 +356,21 @@ class Hub:
                             "data": data.get("data"),
                         }
                         self._event("stats", role=role, session=session, data=data.get("data"))
+                        if role == "car_media":
+                            # Keep a copy on the car PC too (car_ctrl logs it).
+                            await self._to_car_ctrl(
+                                {"type": "media_stats", "s": session, "data": data.get("data")}
+                            )
         finally:
             if role is not None:
                 self._event("disconnect", role=role)
                 await self._run(self.router.on_close(role, ws))
         return ws
+
+    async def _to_car_ctrl(self, msg: dict[str, Any]) -> None:
+        ws = self.router.handles.get("car_ctrl")
+        if isinstance(ws, web.WebSocketResponse):
+            await _send_json(ws, msg)
 
     # ---- HTTP ------------------------------------------------------------
 

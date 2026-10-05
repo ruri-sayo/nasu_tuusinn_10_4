@@ -3,6 +3,8 @@
 Responsibilities:
     - Append structured events to ``logs/<node>-<start time>.jsonl``.
     - Mirror standard ``logging`` records into the same file.
+    - Optionally log host load (``sys`` events) and fsync periodically, so the
+      last seconds before a crash or power loss stay on disk.
 
 Non-responsibilities:
     - Deciding what to log (callers log state transitions, not every command).
@@ -13,11 +15,17 @@ Side Effects:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, TextIO
+
+from nasura_comm.sysmon import SysMon
+
+SYS_PERIOD_S = 2.0
 
 
 class EventLog:
@@ -37,6 +45,18 @@ class EventLog:
         rec = {"t": int(time.time() * 1000), "node": self.node, "event": kind, **fields}
         self._fp.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         self._fp.flush()
+
+    def sync(self) -> None:
+        """Force written events to disk (survives a power loss or OS hang)."""
+        os.fsync(self._fp.fileno())
+
+    async def sys_loop(self, period_s: float = SYS_PERIOD_S) -> None:
+        """Every ``period_s`` log a ``sys`` event (host load) and fsync the file."""
+        mon = SysMon()
+        while True:
+            await asyncio.sleep(period_s)
+            self.event("sys", **mon.sample())
+            await asyncio.to_thread(self.sync)
 
     def close(self) -> None:
         """Close the file."""

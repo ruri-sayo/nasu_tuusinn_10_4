@@ -75,6 +75,9 @@ function render(st) {
   media.push(['S1 fps（送信／受信）', `${s1.car_media?.fps ?? '-'} / ${s1.quest?.fps ?? '-'}`]);
   media.push(['S1 解像度', s1.car_media?.width ? `${s1.car_media.width}×${s1.car_media.height}` : '-']);
   media.push(['S1 受信（quest）', s1.quest?.recv_kbps === undefined ? '-' : `${s1.quest.recv_kbps} kbps, drop ${s1.quest.frames_dropped ?? '-'}`]);
+  const enc = s1.car_media?.encoder;
+  media.push(['S1 エンコーダ（車載）', enc ? `${enc}${s1.car_media.hw_encoder === false ? '（ソフト）' : s1.car_media.hw_encoder ? '（ハード）' : ''} 制約: ${s1.car_media.quality_limit ?? '-'}` : '-', s1.car_media?.quality_limit === 'cpu' ? 'warn' : '']);
+  media.push(['S1 ロス（受信側の報告）', s1.car_media?.remote_loss_pct === undefined ? '-' : `${s1.car_media.remote_loss_pct} %`, s1.car_media?.remote_loss_pct > 2 ? 'warn' : '']);
   media.push(['S1 候補', s1.quest ? `${s1.quest.local_type ?? '-'} ↔ ${s1.quest.remote_type ?? '-'}, RTT ${s1.quest.rtt_ms ?? '-'} ms` : '-']);
   media.push(['S2 送信（booth）', s2.booth?.send_kbps === undefined ? '-' : `${s2.booth.send_kbps} kbps ${s2.booth.fps ?? '-'} fps`, s2.booth?.send_kbps > cfg.S2.max_bitrate / 1000 ? 'bad' : '']);
   media.push(['S2 受信（car_media）', s2.car_media?.recv_kbps === undefined ? '-' : `${s2.car_media.recv_kbps} kbps ${s2.car_media.fps ?? '-'} fps`]);

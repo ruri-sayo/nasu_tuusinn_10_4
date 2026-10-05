@@ -7,6 +7,8 @@ Responsibilities:
     - Every 50 ms (and at once on a state change) send ``out/effective`` to
       UDP out; send ``sys/state`` at 1 Hz and on change.
     - Forward gated local telemetry (UDP in) to the hub.
+    - Log host load every 2 s and the car_media WebRTC stats relayed by the
+      hub, fsyncing the log (crash investigation).
 
 Non-responsibilities:
     - Driving actuators (downstream of UDP out).
@@ -126,6 +128,7 @@ class CarCtrl:
         self._udp_out = await UdpOut.open(self.args.udp_out)
         udp_in = await open_udp_in(self._on_udp_in, self.args.udp_in)
         periodic = asyncio.create_task(self._periodic())
+        sys_log = asyncio.create_task(self.events.sys_loop()) if self.events else None
         try:
             while True:
                 try:
@@ -137,6 +140,8 @@ class CarCtrl:
                 await asyncio.sleep(RECONNECT_S)
         finally:
             periodic.cancel()
+            if sys_log:
+                sys_log.cancel()
             udp_in.close()
             self._udp_out.close()
             await self._close_pc()
@@ -185,6 +190,8 @@ class CarCtrl:
                 elif kind == "peer":
                     self._link_down("peer down")
                     await self._close_pc()
+                elif kind == "media_stats":
+                    self._event("media_stats", session=data.get("s"), data=data.get("data"))
         self.ws = None
 
     # ---- S3 --------------------------------------------------------------
