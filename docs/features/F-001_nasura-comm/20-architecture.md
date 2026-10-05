@@ -38,7 +38,7 @@ verify: review
 | ノード | 場所 | 実装 | 責務 |
 |---|---|---|---|
 | hub | 中間サーバ | Python (aiohttp + aiortc) | ページ配信、シグナリング、入力→命令変換、heartbeat、監視集約 |
-| booth | 中間サーバ | ブラウザ | パイロットのカメラ・マイク送信、E-STOP UI、監視表示 |
+| booth | 中間サーバ | ブラウザ | パイロットのカメラ・マイク送信、E-STOP UI、監視表示、S1 の受信・表示と quest への再送（S4、既定のリレー経路）、S1 の送信設定の切替 |
 | quest | Quest 3S | WebXR | 360°映像・車載音声の受信と描画、コントローラ入力の送信 |
 | car_media | 車載PC | Chromium (kiosk) | X4・車載マイク送信、パイロット映像・音声の表示再生 |
 | car_ctrl | 車載PC | Python (aiortc) | 制御受信、安全状態機械、ローカルUDP入出力 |
@@ -55,6 +55,9 @@ verify: test
 | S1 | car_media → quest | 360°映像＋車載音声 | car_media / quest |
 | S2 | booth → car_media | パイロット映像＋音声 | booth / car_media |
 | S3 | car_ctrl ⇄ hub | DataChannel（制御・テレメトリ） | car_ctrl / hub |
+| S4 | booth → quest | 360°映像＋車載音声（S1 の再送） | booth / quest |
+
+既定（`--s1-route relay`、2026-10-05）では S1 の受け手を booth とし、booth が受けた映像・音声をそのまま S4 で quest へ送り直す。ブースでもロボ側の映像を見られ、車載PCの上りは1本のままである。`--s1-route direct` では S1 の受け手を quest とし、S4 は使わない（10-04 までの構成）。
 
 メディアの送信側を offerer とする。S3 は車載側から張る。セッションを分けることで、映像の輻輳・再接続が制御の配送に影響しない。
 
@@ -70,7 +73,8 @@ verify: review
     - フルスペック：解像度そのまま、上限 12 Mbps（会場の上りに余裕があるときだけ使う）
   - S2：`detail`（解像度維持）、640×480・15 fps・上限 400 kbps
 - 音声は Opus、上限 32 kbps。エコーキャンセルはブラウザ標準を有効にする。
-- メディアは中間サーバで中継・再エンコードしない（SFU不要）。Quest も tailnet に参加しているので、S1 は車載PC と Quest の間を tailnet で直接流れる。
+- メディアの中継は hub（Python）では行わない。既定のリレー経路では、中間サーバの booth ページ（ブラウザ）が S1 を受けて S4 で再エンコードして送る（ブースLAN 内、上限 15 Mbps）。再エンコード1回分の画質低下と遅延の増加、booth ページが閉じると Quest の映像も止まることを許容する（本人の指示、2026-10-05：ブースでロボ側映像を見る、上りを増やさない）。再エンコードしない SFU は依存とインフラの追加が大きいので、11 月の本番に向けて別途検討する。
+- 直結経路（`--s1-route direct`）では、S1 は車載PC と Quest の間を tailnet で直接流れる。
 
 上り帯域予算：
 

@@ -36,10 +36,17 @@ status: draft
 | DD-0001 | `decode` は bytes も受ける。`src` は空でない文字列であれば受理し、値の集合は検査しない | UDP in の送信元（ローカルモジュール）は任意名で、src は `car_local` に上書きするため | なし（設計の範囲内） |
 | DD-0014 / DD-0009（暫定） | Quest を使わずに PC の画面とゲームコントローラーで操縦する pilot ページ（`web/pilot/`）を追加した。hub には `/pilot/` の配信ルートだけを追加した。pilot ページは quest role で接続し、Gamepad API の入力を Quest と同じ形式の `in/quest` で送る（右スティック左右は視点操作に使うので、`right.axes[0]` は 0 で送る）。E-STOP は両スティック押し込み・画面ボタン・`Space`・`Esc` | 本人の指示（2026-10-03）。移動の多い試験で、Quest 無しでも操縦できるようにするため。設計・試験仕様・承認を経ていない（逸脱記録を参照） | 未（暫定のため。正式化する場合は別 Feature として設計する） |
 
+| DD-0014 / DD-0009（2026-10-05、P0-1） | quest ページで、左 Y を押した瞬間の頭のヨー角を正面として球を回す（`xr-view.js` の `recenter`）。hub に `--yaw-offset-deg`（取付ずれの固定値）を追加し、`/config.json` の `view.yaw_offset_deg` で quest・pilot に配る。システムの再センタリング（reference space の `reset`）で左 Y の値を初期化する | 本人の指示（10-04 リハーサルの反映） | 未（30 の更新と承認省略の逸脱記録は、saalco の導入後に行う） |
+| REQ-0007 / AD-0003 / DD-0009（2026-10-05、P0-2） | S1 の既定を 2880×1440 取り込み・「制限」（÷1.5、上限 3.6 Mbps）とし、「フルスペック」（÷1、上限 12 Mbps）を booth から再接続なしで切り替える（`in/camera` の `preset`、`sys/camera` の `preset`、`setParameters` の `maxBitrate`・`scaleResolutionDownBy`）。上り予算を 4.0 Mbps に変更。サブカメラ・S2 の解像度と fps・音声の上限・上り予算を CLI に出した（`--sub-*`、`--s2-width/height/fps`、`--audio-max-bitrate`、`--up-budget-bps`、`--s1-full-max-bitrate`、`--s1-limited-scale`、`--s1-preset`） | 本人の指示（会場の上りは 1 台あたり 3〜4 Mbps 保証、4 Mbps まで許容。会場で即座に下げたい） | 10（REQ-0007）、20（AD-0003）、60（ST-0007）。30 は未 |
+| DD-0016 / DD-0011（2026-10-05、P0-3） | hub と car_ctrl が2秒ごとに `sys` イベント（CPU 使用率・メモリ・CPU 温度〔Linux のみ〕）を書き、ログを fsync する（`sysmon.py`、`EventLog.sys_loop`）。`stats.js` にパケットロス・NACK・エンコーダ／デコーダの実装名とハードウェアかどうかを追加。hub は car_media の統計を car_ctrl に転送し（WebSocket の `media_stats`）、car_ctrl も車載PCのログに書く | 本人の指示（リハーサル中に PC が落ちた原因の調査用） | 未 |
+| AD-0001 / AD-0002 / AD-0003 / DD-0008（2026-10-05、P0-4） | 既定の S1 の受け手を booth にし、booth ページが S1 を表示しつつ S4（booth → quest）で再送する（`--s1-route relay`）。`--s1-route direct` で従来の経路に戻せる。`SignalRouter` に経路表を引数で渡せるようにし、`SESSIONS_RELAY` を追加。`rtc.js` にトラック無しの送信枠（`sendKinds`）と `setStream`（`replaceTrack`）を追加。`/status` に S4 を追加。既存の E2E（`test_st_media.py`）は S1 直結の設計に基づくので `--s1-route direct` で実行する | 本人の指示（ブースでロボ側映像を見たい、ロボ側の上りは増やさない） | 20（AD-0001、AD-0002、AD-0003）。30・50・60 は未 |
+
 ## 設計に無い副作用
 
 - hub：`--tls-self-signed` 指定時に `openssl` を起動し `.certs/` に鍵と証明書を書く（DD-0009 に追記済み）。
-- hub・car_ctrl：`logs/` への JSON Lines 書き込み（DD-0016 のとおり）。
+- hub・car_ctrl：`logs/` への JSON Lines 書き込み（DD-0016 のとおり）。2026-10-05 から2秒ごとに fsync する。
+- hub・car_ctrl：`/proc`・`/sys/class`（Linux）、`GetSystemTimes`・`GlobalMemoryStatusEx`（Windows）の読み取り（`sysmon.py`）。
+- booth ページ：S1 の映像・音声の再エンコードと quest への送信（S4）。
 
 ## 追加した依存
 
