@@ -3,7 +3,10 @@
 // Responsibilities: S2 offerer; E-STOP button and Escape key -> in/estop;
 // release by two presses within 2 s -> in/estop_release; poll /status at
 // 1 Hz and render it; show telemetry pushed by the hub; select the S1 camera
-// and send preset (in/camera).
+// and send preset (in/camera). With S1_route "relay": S1 answerer (show the
+// robot video here) and S4 offerer (re-send the same stream to the quest).
+// Non-responsibilities: SFU-style forwarding without re-encoding (the browser
+// re-encodes S4).
 // Non-responsibilities: browser dialogs (alert/confirm/prompt are not used).
 // Side Effects: captures camera/microphone, opens WebRTC and WebSocket,
 // polls /status.
@@ -72,13 +75,21 @@ function render(st) {
   const s1Up = s1.car_media?.send_kbps;
   const budget = st.up_budget_bps / 1000;
   media.push(['S1 上り（car_media 送信）', s1Up === undefined ? '-' : `${s1Up} kbps / 予算 ${budget} kbps`, s1Up > budget ? 'bad' : '']);
-  media.push(['S1 fps（送信／受信）', `${s1.car_media?.fps ?? '-'} / ${s1.quest?.fps ?? '-'}`]);
+  // S1 ends at the booth in relay mode, at the quest in direct mode.
+  const relay = cfg.S1_route === 'relay';
+  const s1r = relay ? s1.booth : s1.quest;
+  media.push(['S1 fps（送信／受信）', `${s1.car_media?.fps ?? '-'} / ${s1r?.fps ?? '-'}`]);
   media.push(['S1 解像度', s1.car_media?.width ? `${s1.car_media.width}×${s1.car_media.height}` : '-']);
-  media.push(['S1 受信（quest）', s1.quest?.recv_kbps === undefined ? '-' : `${s1.quest.recv_kbps} kbps, drop ${s1.quest.frames_dropped ?? '-'}`]);
+  media.push([`S1 受信（${relay ? 'booth' : 'quest'}）`, s1r?.recv_kbps === undefined ? '-' : `${s1r.recv_kbps} kbps, drop ${s1r.frames_dropped ?? '-'}, loss ${s1r.loss_pct ?? '-'} %`]);
   const enc = s1.car_media?.encoder;
   media.push(['S1 エンコーダ（車載）', enc ? `${enc}${s1.car_media.hw_encoder === false ? '（ソフト）' : s1.car_media.hw_encoder ? '（ハード）' : ''} 制約: ${s1.car_media.quality_limit ?? '-'}` : '-', s1.car_media?.quality_limit === 'cpu' ? 'warn' : '']);
   media.push(['S1 ロス（受信側の報告）', s1.car_media?.remote_loss_pct === undefined ? '-' : `${s1.car_media.remote_loss_pct} %`, s1.car_media?.remote_loss_pct > 2 ? 'warn' : '']);
-  media.push(['S1 候補', s1.quest ? `${s1.quest.local_type ?? '-'} ↔ ${s1.quest.remote_type ?? '-'}, RTT ${s1.quest.rtt_ms ?? '-'} ms` : '-']);
+  media.push(['S1 候補', s1r ? `${s1r.local_type ?? '-'} ↔ ${s1r.remote_type ?? '-'}, RTT ${s1r.rtt_ms ?? '-'} ms` : '-']);
+  if (relay) {
+    const s4 = st.stats.S4 || {};
+    media.push(['S4 送信（booth → quest）', s4.booth?.send_kbps === undefined ? '-' : `${s4.booth.send_kbps} kbps ${s4.booth.fps ?? '-'} fps ${s4.booth.width ? `${s4.booth.width}×${s4.booth.height}` : ''} ${s4.booth.encoder ?? ''}`]);
+    media.push(['S4 受信（quest）', s4.quest?.recv_kbps === undefined ? '-' : `${s4.quest.recv_kbps} kbps ${s4.quest.fps ?? '-'} fps, drop ${s4.quest.frames_dropped ?? '-'}, loss ${s4.quest.loss_pct ?? '-'} %, RTT ${s4.quest.rtt_ms ?? '-'} ms`]);
+  }
   media.push(['S2 送信（booth）', s2.booth?.send_kbps === undefined ? '-' : `${s2.booth.send_kbps} kbps ${s2.booth.fps ?? '-'} fps`, s2.booth?.send_kbps > cfg.S2.max_bitrate / 1000 ? 'bad' : '']);
   media.push(['S2 受信（car_media）', s2.car_media?.recv_kbps === undefined ? '-' : `${s2.car_media.recv_kbps} kbps ${s2.car_media.fps ?? '-'} fps`]);
   rows('media', media);
@@ -135,6 +146,11 @@ async function main() {
   setInterval(poll, 1000);
   poll();
 
+  // Before any await: the S1 offer can arrive as soon as the WebSocket opens,
+  // and an answerer that registers late would drop it.
+  if (cfg.S1_route === 'relay') startRelay();
+  else $('robotBox').hidden = true;
+
   let stream = null;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -147,6 +163,28 @@ async function main() {
   }
   const s2 = createSession({ session: 'S2', role: 'booth', stream, media: cfg.S2, sig });
   startStats({ sig, session: 'S2', role: 'booth', getPc: () => s2.pc });
+}
+
+// S1 (car) -> this page -> S4 (quest). The car uplink carries one copy only.
+function startRelay() {
+  const robot = $('robot');
+  const s4 = createSession({ session: 'S4', role: 'booth', sendKinds: ['audio', 'video'], media: cfg.S4, sig,
+    onState: (s) => { $('s4State').textContent = s; } });
+  const s1 = createSession({
+    session: 'S1', role: 'booth', media: cfg.S1, sig,
+    onTrack: (s) => {
+      if (robot.srcObject !== s) robot.srcObject = s;
+      robot.play().catch(() => {});
+      s4.setStream(s);
+    },
+    onState: (s) => { $('s1State').textContent = s; },
+  });
+  startStats({ sig, session: 'S1', role: 'booth', getPc: () => s1.pc });
+  startStats({ sig, session: 'S4', role: 'booth', getPc: () => s4.pc });
+  $('robotAudio').addEventListener('click', () => {
+    robot.muted = !robot.muted;
+    $('robotAudio').textContent = robot.muted ? '車載音声: 消音中（押すとブースで再生）' : '車載音声: 再生中（押すと消音）';
+  });
 }
 
 main().catch((err) => { $('error').textContent = String(err); });

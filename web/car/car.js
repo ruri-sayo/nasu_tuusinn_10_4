@@ -65,6 +65,7 @@ async function openCamera(s1) {
 
 async function main() {
   const cfg = await (await fetch('/config.json')).json();
+  $('s1Peer').textContent = cfg.S1_route === 'relay' ? 'booth' : 'quest';
   let stream = null;
   try {
     stream = await openCamera(cfg.S1);

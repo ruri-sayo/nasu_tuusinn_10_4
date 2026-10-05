@@ -67,3 +67,35 @@ def test_hub_selects_camera_and_preset():
         hub._select_camera(bad)
     assert (hub.camera, hub.preset) == ("sub", "full")
     assert hub.dropped["in/camera"] == 3
+
+
+def test_relay_route_sessions():
+    from nasura_comm.signaling import SESSIONS_RELAY, Send, SignalRouter
+
+    r = SignalRouter(SESSIONS_RELAY)
+    r.on_hello("car_media", "c")
+    acts = r.on_hello("booth", "b")
+    restarts = sorted(
+        (a.handle, a.msg["session"])
+        for a in acts
+        if isinstance(a, Send) and a.msg["type"] == "restart"
+    )
+    assert restarts == [("b", "S2"), ("c", "S1")]
+    acts = r.on_hello("quest", "q")
+    assert [(a.handle, a.msg["session"]) for a in acts] == [("b", "S4")]
+    assert r.on_signal("quest", "S1", {}) == []  # the quest is not on S1 any more
+    fwd = r.on_signal("quest", "S4", {"x": 1})
+    assert fwd[0].handle == "b"
+    peer = r.on_close("booth", "b")
+    assert sorted((a.handle, a.msg["session"]) for a in peer) == [
+        ("c", "S1"),
+        ("c", "S2"),
+        ("q", "S4"),
+    ]
+
+
+def test_route_default_relay_and_direct_option():
+    assert build_config_json(parse_args([]))["S1_route"] == "relay"
+    hub = Hub(parse_args(["--s1-route", "direct"]))
+    assert "S4" not in hub.router.sessions
+    assert Hub(parse_args([])).router.sessions["S1"] == ("car_media", "booth")

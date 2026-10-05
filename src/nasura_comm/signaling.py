@@ -12,7 +12,8 @@ Non-responsibilities:
 Sessions:
     S1 car_media -> quest, S2 booth -> car_media, S3 car_ctrl -> hub
     (``hub`` is the always-present internal peer). The first role is the
-    offerer.
+    offerer. With ``SESSIONS_RELAY`` S1 ends at the booth, which re-sends it
+    to the quest on S4.
 """
 
 from __future__ import annotations
@@ -30,6 +31,12 @@ SESSIONS: dict[str, tuple[str, str]] = {
     "S1": ("car_media", "quest"),
     "S2": ("booth", "car_media"),
     "S3": ("car_ctrl", HUB),
+}
+SESSIONS_RELAY: dict[str, tuple[str, str]] = {
+    "S1": ("car_media", "booth"),
+    "S2": ("booth", "car_media"),
+    "S3": ("car_ctrl", HUB),
+    "S4": ("booth", "quest"),
 }
 
 
@@ -63,11 +70,13 @@ class SignalRouter:
 
     State:
         ``handles``: role -> current connection handle.
+        ``sessions``: session -> (offerer, answerer), fixed at creation.
     """
 
-    def __init__(self) -> None:
-        """Start with no connected roles."""
+    def __init__(self, sessions: dict[str, tuple[str, str]] | None = None) -> None:
+        """Start with no connected roles; ``sessions`` defaults to ``SESSIONS``."""
         self.handles: dict[str, Hashable] = {}
+        self.sessions = SESSIONS if sessions is None else sessions
 
     def present(self, role: str) -> bool:
         """Return True if ``role`` is connected (``hub`` always is)."""
@@ -80,7 +89,7 @@ class SignalRouter:
         return [] if handle is None else [Send(handle, msg)]
 
     def _restart(self, session: str) -> list[Action]:
-        offerer, answerer = SESSIONS[session]
+        offerer, answerer = self.sessions[session]
         if self.present(offerer) and self.present(answerer):
             return self._deliver(offerer, {"type": "restart", "session": session})
         return []
@@ -95,14 +104,14 @@ class SignalRouter:
         if old is not None and old != handle:
             actions.append(Close(old))
         self.handles[role] = handle
-        for session, ends in SESSIONS.items():
+        for session, ends in self.sessions.items():
             if role in ends:
                 actions += self._restart(session)
         return actions
 
     def on_signal(self, from_role: str, session: str, data: Any) -> list[Action]:
         """Relay ``data`` of ``session`` from ``from_role`` to the other end."""
-        ends = SESSIONS.get(session)
+        ends = self.sessions.get(session)
         if ends is None or from_role not in ends:
             log.warning("dropped signal %s from %s", session, from_role)
             return []
@@ -111,7 +120,7 @@ class SignalRouter:
 
     def on_restart_req(self, from_role: str, session: str) -> list[Action]:
         """Ask the offerer of ``session`` to restart if both ends are present."""
-        ends = SESSIONS.get(session)
+        ends = self.sessions.get(session)
         if ends is None or from_role not in ends:
             log.warning("dropped restart_req %s from %s", session, from_role)
             return []
@@ -123,7 +132,7 @@ class SignalRouter:
             return []
         del self.handles[role]
         actions: list[Action] = []
-        for session, ends in SESSIONS.items():
+        for session, ends in self.sessions.items():
             if role in ends:
                 other = ends[1] if role == ends[0] else ends[0]
                 msg = {"type": "peer", "session": session, "state": "down"}

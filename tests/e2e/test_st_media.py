@@ -96,6 +96,9 @@ def dep(tmp_path_factory: pytest.TempPathFactory) -> Any:
         udp_out=free_udp_port(),
         udp_in=free_udp_port(),
         extra_topics=[TLM_EXTRA],
+        # These tests follow the S1 car_media -> quest design; the booth relay
+        # route (default since 2026-10-05) is checked on the real hardware.
+        hub_args=["--s1-route", "direct"],
     )
     d = Deployment(system, chrome)
     try:

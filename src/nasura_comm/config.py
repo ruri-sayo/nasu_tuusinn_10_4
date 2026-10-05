@@ -18,7 +18,12 @@ from pathlib import Path
 from typing import Any
 
 ROLES = ("quest", "booth", "car_media", "car_ctrl")
-SESSIONS = ("S1", "S2", "S3")
+SESSIONS = ("S1", "S2", "S3", "S4")
+MEDIA_SESSIONS = ("S1", "S2", "S4")
+S1_ROUTES = ("relay", "direct")
+"""``relay`` (default): S1 goes car_media -> booth, the booth shows it and
+re-sends it to the quest on S4, so the car uplink carries one copy.
+``direct``: S1 goes car_media -> quest as before (no S4, booth shows nothing)."""
 S1_PRESETS = ("full", "limited")
 """S1 send presets selectable from the booth: ``full`` sends the captured
 resolution at ``--s1-full-max-bitrate``; ``limited`` (default) scales down by
@@ -76,6 +81,11 @@ class HubConfig:
     s1_preset: str = "limited"
     sub: SubCameraConfig = field(default_factory=SubCameraConfig)
     s2: MediaConfig = field(default_factory=lambda: MediaConfig(640, 480, 15, 400_000, "detail"))
+    s1_route: str = "relay"
+    s4: MediaConfig = field(
+        default_factory=lambda: MediaConfig(2880, 1440, 30, 15_000_000, "motion")
+    )
+    """Booth -> quest re-send on the booth LAN (only the limits are used)."""
     up_budget_bps: int = 4_000_000
     yaw_offset_deg: float = 0.0
     """Robot front in the 360° image, degrees right of the image center
@@ -126,6 +136,10 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     ap.add_argument("--s2-height", type=int, default=d.s2.height)
     ap.add_argument("--s2-fps", type=int, default=d.s2.fps)
     ap.add_argument("--s2-max-bitrate", type=int, default=d.s2.max_bitrate)
+    ap.add_argument("--s1-route", default=d.s1_route, choices=list(S1_ROUTES))
+    ap.add_argument(
+        "--s4-max-bitrate", type=int, default=d.s4.max_bitrate, help="booth -> quest (bps)"
+    )
     ap.add_argument("--audio-max-bitrate", type=int, default=d.s1.audio_max_bitrate)
     ap.add_argument("--up-budget-bps", type=int, default=d.up_budget_bps)
     ap.add_argument(
@@ -148,7 +162,9 @@ def parse_args(argv: list[str] | None = None) -> HubConfig:
     d.sub = SubCameraConfig(a.sub_label, a.sub_width, a.sub_height, a.sub_fps, a.sub_max_bitrate)
     d.s2.width, d.s2.height, d.s2.fps = a.s2_width, a.s2_height, a.s2_fps
     d.s2.max_bitrate = a.s2_max_bitrate
+    d.s1_route, d.s4.max_bitrate = a.s1_route, a.s4_max_bitrate
     d.s1.audio_max_bitrate = d.s2.audio_max_bitrate = a.audio_max_bitrate
+    d.s4.audio_max_bitrate = max(a.audio_max_bitrate, 64_000)
     d.up_budget_bps = a.up_budget_bps
     d.yaw_offset_deg = a.yaw_offset_deg
     return d
@@ -165,6 +181,8 @@ def build_config_json(cfg: HubConfig) -> dict[str, Any]:
         "S1_preset": cfg.s1_preset,
         "sub": asdict(cfg.sub),
         "S2": asdict(cfg.s2),
+        "S1_route": cfg.s1_route,
+        "S4": asdict(cfg.s4),
         "up_budget_bps": cfg.up_budget_bps,
         "view": {"yaw_offset_deg": cfg.yaw_offset_deg},
     }
@@ -199,7 +217,7 @@ def build_status(state: StatusSnapshot) -> dict[str, Any]:
             "latched": state.latched,
             "last_input_age_ms": state.last_input_age_ms,
         },
-        "stats": {s: state.stats.get(s) for s in ("S1", "S2")},
+        "stats": {s: state.stats.get(s) for s in MEDIA_SESSIONS},
         "dropped": dict(state.dropped),
         "telemetry": dict(state.telemetry),
         "up_budget_bps": state.up_budget_bps,

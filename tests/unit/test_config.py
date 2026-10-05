@@ -41,7 +41,7 @@ def test_status_shape_empty():
     st = build_status(StatusSnapshot())
     assert set(st) >= {"roles", "sessions", "control", "stats", "dropped", "up_budget_bps"}
     assert set(st["roles"]) == {"quest", "booth", "car_media", "car_ctrl"}
-    assert set(st["sessions"]) == {"S1", "S2", "S3"}
+    assert set(st["sessions"]) == {"S1", "S2", "S3", "S4"}
     ctrl = st["control"]
     assert set(ctrl) >= {"rtt_ms", "rtt_ewma_ms", "car_state", "latched", "last_input_age_ms"}
     assert ctrl["rtt_ms"] is None

@@ -8,7 +8,8 @@ Responsibilities:
     - Relay ``sys/state`` and extension topics from car_ctrl to quest/booth.
 
 Non-responsibilities:
-    - Media relay (browsers connect S1/S2 peer to peer; no SFU).
+    - Media relay (browsers connect S1/S2/S4 peer to peer; with the default
+      ``--s1-route relay`` the booth page re-sends S1 to the quest, not the hub).
     - Authentication (R-4).
 
 Side Effects:
@@ -38,6 +39,7 @@ from aiortc import RTCConfiguration, RTCPeerConnection, RTCSessionDescription
 from nasura_comm import topics
 from nasura_comm.clock import mono_ms, wall_ms
 from nasura_comm.config import (
+    MEDIA_SESSIONS,
     ROLES,
     S1_PRESETS,
     HubConfig,
@@ -51,7 +53,7 @@ from nasura_comm.envelope import Envelope, decode
 from nasura_comm.filters import SeqFilter
 from nasura_comm.log import EventLog
 from nasura_comm.mapping import Mapper
-from nasura_comm.signaling import Close, Internal, Send, SignalRouter
+from nasura_comm.signaling import SESSIONS_RELAY, Close, Internal, Send, SignalRouter
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +91,7 @@ class Hub:
         self.cfg = cfg
         extras = [topics.parse_topic_arg(t) for t in cfg.extra_topics]
         self.registry = topics.Registry([*topics.EXTENSIONS, *extras])
-        self.router = SignalRouter()
+        self.router = SignalRouter(SESSIONS_RELAY if cfg.s1_route == "relay" else None)
         self.core = ControlCore(Mapper())
         self.seq = SeqFilter()
         self.channels = ChannelPair(self.registry)
@@ -350,7 +352,7 @@ class Hub:
                     self._handle_input(role, data.get("env"))
                 elif kind == "stats":
                     session = str(data.get("session"))
-                    if session in ("S1", "S2"):
+                    if session in MEDIA_SESSIONS:
                         self.stats.setdefault(session, {})[role] = {
                             "at": mono_ms(),
                             "data": data.get("data"),
@@ -379,7 +381,7 @@ class Hub:
         now = mono_ms()
         sessions: dict[str, str | None] = {}
         stats: dict[str, Any] = {}
-        for s in ("S1", "S2"):
+        for s in MEDIA_SESSIONS:
             reports = {
                 r: v
                 for r, v in self.stats.get(s, {}).items()

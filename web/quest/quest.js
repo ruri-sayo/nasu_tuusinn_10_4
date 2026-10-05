@@ -59,8 +59,10 @@ async function main() {
     audio.play().catch(() => {});
   });
 
+  // Relay mode: the 360° video comes from the booth on S4 (same stream as S1).
+  const session = cfg.S1_route === 'relay' ? 'S4' : 'S1';
   const s1 = createSession({
-    session: 'S1', role: 'quest', media: cfg.S1, sig,
+    session, role: 'quest', media: cfg.S1, sig,
     onTrack: (stream) => {
       if (video.srcObject !== stream) video.srcObject = stream;
       if (audio.srcObject !== stream) audio.srcObject = stream;
@@ -75,7 +77,7 @@ async function main() {
       $('s1').style.color = stateColor(s);
     },
   });
-  startStats({ sig, session: 'S1', role: 'quest', getPc: () => s1.pc });
+  startStats({ sig, session, role: 'quest', getPc: () => s1.pc });
 }
 
 main().catch((err) => { $('error').textContent = String(err); });

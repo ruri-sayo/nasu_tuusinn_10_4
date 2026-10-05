@@ -20,6 +20,9 @@
   #camSel button, .sel button { margin: 6px 4px 0 0; padding: 10px 16px; font-size: 18px; background: #246; color: #eee; border: 0; border-radius: 8px; }
   #camSel button:disabled, .sel button:disabled { background: #2a6; color: #fff; }
   #releaseHint { color: #aaa; font-size: 13px; min-height: 1.4em; }
+  #robot { aspect-ratio: 2 / 1; object-fit: contain; }
+  .hint { color: #aaa; font-size: 13px; margin-bottom: 8px; }
+  .hint button { margin-left: 8px; padding: 4px 10px; background: #333; color: #eee; border: 1px solid #666; border-radius: 6px; }
   table { border-collapse: collapse; width: 100%; }
   td, th { padding: 4px 8px; border-bottom: 1px solid #333; text-align: left; font-variant-numeric: tabular-nums; }
   th { color: #999; font-weight: 500; width: 38%; }
@@ -51,6 +54,11 @@
     </div>
   </section>
   <section>
+    <div id="robotBox">
+      <video id="robot" autoplay playsinline muted></video>
+      <div class="hint">ロボ側映像（S1: <span id="s1State">-</span> ／ Quest へ再送 S4: <span id="s4State">-</span>）。この画面を閉じる・最小化すると Quest の映像も止まります。
+        <button id="robotAudio">車載音声: 消音中（押すとブースで再生）</button></div>
+    </div>
     <div>車載状態: <span id="carState">-</span> <span id="latched"></span></div>
     <h2>接続</h2>
     <table id="conn"></table>
